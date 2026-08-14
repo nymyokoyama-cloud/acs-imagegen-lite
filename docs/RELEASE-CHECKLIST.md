@@ -19,7 +19,8 @@
 - [ ] 脆弱性スキャン
 - [x] RC2イメージをGHCRへpush
 - [x] RC3イメージをbuild・GHCRへpush
-- [ ] RC4イメージをbuild・スキャン・GHCRへpush
+- [x] RC4イメージをbuild・GHCRへpush
+- [ ] RC4イメージを脆弱性スキャン
 - [x] `runpod-template.json`のイメージ名をRC4へ更新
 - [x] RunPod非公開テンプレート作成
 - [ ] RunPod公開テンプレート作成（法務・H200実測後）
@@ -32,15 +33,21 @@
 - [ ] Raw 1枚生成
 - [ ] 任意LoRA 1枚生成
 - [ ] 生成画像のダウンロード
-- [ ] GPU停止
-- [ ] Network Volume接続時のPod完全削除と再起動
+- [x] Krea2 Turbo入力画像1枚をMac既存環境で生成（RunPod LiteのTurbo実測とは数えない）
+- [x] Network Volume接続時のRC4再起動とH3モデル再利用
+- [x] CLIからPod完全削除しGPU課金0へ復帰
+- [ ] Lite UIの「Podを完全削除」が実際の削除完了まで反映されること
 - [ ] アイドル自動終了
-- [ ] H200 / AP-JP-1でH3モデル4件のSHA-256成功
-- [ ] H3 Text to Video 5秒・音声付き
-- [ ] H3 Image to Video 5秒・入力画像削除
-- [ ] H3 First / Last Frame 5秒・入力画像削除
-- [ ] H3出力のMP4保存とスマホ再生
+- [x] H200 / AP-JP-1でH3モデル4件のSHA-256成功
+- [x] H3 Text to Video 5秒・音声付き
+- [x] H3 Image to Video 5秒
+- [x] H3 First / Last Frame 5秒
+- [ ] H3 I2V / FLFの入力画像が実環境で処理後削除されること
+- [x] H3出力のMP4保存・H.264映像・AACステレオ音声
+- [ ] H3出力のスマホ再生
 - [ ] 非許可リージョンでH3取得・生成が拒否される
+
+実測詳細: [2026-08-14 RC4 H200検証](VALIDATION-2026-08-14.md)
 
 ## 配布導線
 
