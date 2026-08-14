@@ -13,6 +13,8 @@ def test_model_status_exposes_beginner_packages_and_free_space() -> None:
     assert set(packages) == {"turbo", "raw", "all", "h3", "recommended", "everything"}
     assert packages["turbo"]["size"] < packages["all"]["size"]
     assert packages["recommended"]["requires_h3_terms"] is True
+    assert packages["recommended"]["requires_krea_terms"] is True
+    assert packages["h3"]["requires_krea_terms"] is False
     assert status["free_bytes"] > 0
 
 

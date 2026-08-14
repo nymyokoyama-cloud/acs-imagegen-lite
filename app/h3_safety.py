@@ -15,9 +15,9 @@ def _compile(*patterns: str) -> tuple[re.Pattern[str], ...]:
     return tuple(re.compile(pattern, re.IGNORECASE) for pattern in patterns)
 
 
-# MiniMax H3 Acceptable Use Policyのうち、プロンプト文字列から高い確度で
-# 検出できる代表的な違反を拒否する。これは完全なモデレーションではないため、
-# 利用条件への同意、権利確認、通報・停止手順と組み合わせて運用する。
+# MiniMax H3とKrea 2のAcceptable Use Policyのうち、プロンプト文字列から
+# 高い確度で検出できる代表的な違反を拒否する。これは完全なモデレーションでは
+# ないため、利用条件への同意、権利確認、人による出力確認、通報手順と組み合わせる。
 RULES = (
     SafetyRule(
         "minors_exploitation",
@@ -35,6 +35,15 @@ RULES = (
             r"\b(without consent|nonconsensual|fraud|scam|deceive)\b.{0,50}\b(deepfake|impersonat(?:e|ion)|face[ -]?swap)\b",
             r"(本人の同意なく|無断で|なりすまし|詐欺).{0,40}(顔交換|ディープフェイク|本人そっくり|実在人物)",
             r"(顔交換|ディープフェイク|本人そっくり|実在人物).{0,40}(本人の同意なく|無断で|なりすまし|詐欺)",
+        ),
+    ),
+    SafetyRule(
+        "nonconsensual_intimate_imagery",
+        _compile(
+            r"\b(real person|celebrity|ex[- ]?partner)\b.{0,50}\b(nude|naked|sexual|intimate|porn)\b.{0,40}\b(without consent|nonconsensual|secretly)\b",
+            r"\b(without consent|nonconsensual|secretly)\b.{0,40}\b(nude|naked|sexual|intimate|porn)\b.{0,50}\b(real person|celebrity|ex[- ]?partner)\b",
+            r"(実在人物|有名人|元恋人).{0,40}(裸|性的|親密画像|ポルノ).{0,30}(無断|同意なく|隠し撮り)",
+            r"(無断|同意なく|隠し撮り).{0,30}(裸|性的|親密画像|ポルノ).{0,40}(実在人物|有名人|元恋人)",
         ),
     ),
     SafetyRule(
@@ -99,6 +108,27 @@ RULES = (
         ),
     ),
     SafetyRule(
+        "mass_surveillance",
+        _compile(
+            r"\b(mass surveillance|track everyone|facial recognition surveillance)\b.{0,50}\b(without consent|without their knowledge|covertly)\b",
+            r"(大量監視|住民監視|顔認識監視).{0,30}(無断|同意なく|秘密裏に)",
+        ),
+    ),
+    SafetyRule(
+        "safety_bypass",
+        _compile(
+            r"\b(bypass|circumvent|disable|remove)\b.{0,40}\b(safety filter|content filter|watermark|usage restriction)\b",
+            r"(安全フィルター|コンテンツフィルター|透かし|利用制限).{0,30}(回避|無効化|削除|迂回)",
+        ),
+    ),
+    SafetyRule(
+        "fraud_or_spam",
+        _compile(
+            r"\b(create|generate|make)\b.{0,30}\b(spam campaign|phishing ad|fraudulent identity|fake customer reviews?)\b",
+            r"(詐欺広告|フィッシング広告|スパム大量生成|偽の顧客レビュー).{0,30}(作成|生成|量産)",
+        ),
+    ),
+    SafetyRule(
         "unlicensed_professional_activity",
         _compile(
             r"\b(pretend to be|impersonate)\b.{0,30}\b(doctor|lawyer|financial adviser)\b.{0,40}\b(advice|consultation|diagnosis)\b",
@@ -115,3 +145,7 @@ def blocked_h3_categories(prompt: str) -> list[str]:
         for rule in RULES
         if any(pattern.search(normalized) for pattern in rule.patterns)
     ]
+
+
+def blocked_krea_categories(prompt: str) -> list[str]:
+    return blocked_h3_categories(prompt)

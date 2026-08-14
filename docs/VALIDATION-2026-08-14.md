@@ -61,5 +61,23 @@ RunPodの請求反映には遅延があり得るため、差額は削除直後�
 1. 新規一時ディスクでKrea2 Turbo + H3の取得速度を改善し、7ファイルのSHA-256完了を実測する。
 2. RunPod Lite上でKrea2 Turboを1枚生成し、ダウンロードまで確認する。
 3. UIのPod完全削除が失敗を隠さず、RunPod側の削除完了を確認できるようにする。
+
+## RC6 公開前監査（2026-08-14追記）
+
+RC5でHugging Face Xet高速取得とPod終了結果APIを実装したが、Krea 2公式ライセンスの公開条件監査で追加対応が必要と判明したため、RC5のGHCR buildは中止し公開していない。
+
+- Krea 2 Community License Agreement v.1（2026-06-22）全6ページを文字抽出とPNG表示で確認
+- 公式Krea Acceptable Use Policyを確認
+- 商用利用の会社全体年商100万米ドル未満条件、Content Filtering Requirement、AUPを日本語条件と5項目同意へ反映
+- Krea2のモデル取得と画像生成を同意前はサーバー側で拒否
+- Krea2プロンプトを受付時と実行直前に検査し、人による完成画像確認を必須化
+- Krea 2出力に`krea2-ai`ファイル名と`X-AI-Generated-By: Krea 2`を追加
+- Hugging Face取得元をKrea 2 commit `952f49d49653cb42e7d6cf7cbfad74738073ec7d`、MiniMax H3 commit `014cd40f7e177756c6b2473c0d93b1c89a790dd2`へ固定し、既存SHA-256確認と二重化
+- Python 3.12クリーン環境で27テスト成功
+- `pip-audit --local`: 既知脆弱性0件
+- `bandit -q -r app scripts -x tests`: 未対処指摘0件
+- 固定commitからのHugging Face小ファイル実取得: 成功
+
+RC6はGHCR完成イメージのコンテナスキャン、新規RunPod一時ディスクでのKrea2 Turbo取得・1枚生成・課金停止確認を残す。ここまでは公開完成扱いにしない。
 4. I2V / FLF入力画像の処理後削除を実環境で確認する。
 5. スマホから3本のMP4再生を確認する。

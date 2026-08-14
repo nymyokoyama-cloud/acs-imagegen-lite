@@ -44,6 +44,15 @@ from .config import (
     H3_SIZES,
     H3_TERMS_PATH,
     H3_TERMS_VERSION,
+    KREA_ACCEPTANCE_FILE,
+    KREA_ACCEPTANCE_LOG_FILE,
+    KREA_AUP_URL,
+    KREA_LICENSE_SHA256,
+    KREA_LICENSE_URL,
+    KREA_LICENSE_VERSION,
+    KREA_SAFETY_LOG_FILE,
+    KREA_TERMS_PATH,
+    KREA_TERMS_VERSION,
     LORA_DIR,
     MAX_INPUT_IMAGE_BYTES,
     MAX_LORA_BYTES,
@@ -64,7 +73,7 @@ from .config import (
 from .workflow import build_h3_workflow, build_workflow
 from .model_manager import cancel_install, public_status as model_public_status, start_install
 from .config import MODEL_PACKAGES
-from .h3_safety import blocked_h3_categories
+from .h3_safety import blocked_h3_categories, blocked_krea_categories
 
 
 HTML_PATH = APP_DIR / "templates" / "index.html"
@@ -83,11 +92,20 @@ H3_CONFIRMATION_KEYS = (
     "no_other_ai_training",
     "reporting",
 )
+KREA_CONFIRMATION_KEYS = (
+    "license",
+    "revenue",
+    "aup",
+    "rights",
+    "filtering_and_review",
+)
 LOGIN_FAILURES: dict[str, list[float]] = {}
 LOGIN_WINDOW_SECONDS = 5 * 60
 LOGIN_MAX_FAILURES = 8
 H3_ACCEPTANCE_LOCK = threading.Lock()
 H3_SAFETY_LOG_LOCK = threading.Lock()
+KREA_ACCEPTANCE_LOCK = threading.Lock()
+KREA_SAFETY_LOG_LOCK = threading.Lock()
 POD_ACTION_LOCK = threading.Lock()
 
 
@@ -291,7 +309,7 @@ initialize_password_from_env()
 
 def comfy_alive() -> bool:
     try:
-        with urllib.request.urlopen(f"{COMFY_URL}/system_stats", timeout=3):
+        with urllib.request.urlopen(f"{COMFY_URL}/system_stats", timeout=3):  # nosec B310
             return True
     except Exception:
         return False
@@ -304,6 +322,47 @@ def safe_lora_name(name: str) -> str:
     if not clean or any(char not in SAFE_LORA_CHARS for char in clean):
         raise ValueError("ファイル名は半角英数字、ハイフン、アンダースコア、ドットだけにしてください")
     return clean
+
+
+def krea_acceptance() -> dict[str, Any] | None:
+    try:
+        record = json.loads(KREA_ACCEPTANCE_FILE.read_text(encoding="utf-8"))
+        confirmations = record.get("confirmations", {})
+        if (
+            record.get("license_version") == KREA_LICENSE_VERSION
+            and record.get("license_sha256") == KREA_LICENSE_SHA256
+            and record.get("terms_version") == KREA_TERMS_VERSION
+            and record.get("accepted") is True
+            and all(confirmations.get(key) is True for key in KREA_CONFIRMATION_KEYS)
+        ):
+            return record
+    except Exception:  # nosec B110
+        pass
+    return None
+
+
+def log_krea_safety_block(categories: list[str], stage: str) -> None:
+    record = {
+        "blocked_at": datetime.now(timezone.utc).isoformat(),
+        "app_version": VERSION,
+        "stage": stage,
+        "categories": sorted(set(categories)),
+    }
+    try:
+        with KREA_SAFETY_LOG_LOCK:
+            with KREA_SAFETY_LOG_FILE.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            KREA_SAFETY_LOG_FILE.chmod(0o600)
+    except OSError:
+        pass
+
+
+def krea_ready_for_access() -> tuple[bool, str]:
+    if not krea_acceptance():
+        return False, "Krea 2の公式ライセンスと利用条件への同意が必要です"
+    return True, "利用できます"
 
 
 def h3_acceptance() -> dict[str, Any] | None:
@@ -320,7 +379,7 @@ def h3_acceptance() -> dict[str, Any] | None:
             and all(confirmations.get(key) is True for key in H3_CONFIRMATION_KEYS)
         ):
             return record
-    except Exception:
+    except Exception:  # nosec B110
         pass
     return None
 
@@ -435,7 +494,7 @@ def _submit_to_comfy(graph: dict[str, Any]) -> str:
         data=body,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
         payload = json.load(response)
     prompt_id = payload.get("prompt_id")
     if not prompt_id:
@@ -444,7 +503,12 @@ def _submit_to_comfy(graph: dict[str, Any]) -> str:
 
 
 def _copy_comfy_output(
-    history: dict[str, Any], prompt_id: str, job_id: int, *, h3_output: bool = False
+    history: dict[str, Any],
+    prompt_id: str,
+    job_id: int,
+    *,
+    h3_output: bool = False,
+    krea_output: bool = False,
 ) -> str:
     outputs = history.get(prompt_id, {}).get("outputs", {})
     for node in outputs.values():
@@ -460,7 +524,7 @@ def _copy_comfy_output(
                 source = source_root / subfolder / filename
                 if not source.is_file() or source.suffix.lower() not in MEDIA_SUFFIXES:
                     continue
-                marker = "-minimax-h3-ai" if h3_output else ""
+                marker = "-minimax-h3-ai" if h3_output else "-krea2-ai" if krea_output else ""
                 destination = OUTPUT_DIR / f"job-{job_id}{marker}{source.suffix.lower()}"
                 shutil.copy2(source, destination)
                 return destination.name
@@ -497,6 +561,13 @@ def run_job(row: sqlite3.Row) -> str:
         return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]), h3_output=True)
 
     model_key = row["model_key"]
+    allowed, reason = krea_ready_for_access()
+    if not allowed:
+        raise RuntimeError(reason)
+    blocked = blocked_krea_categories(str(row["prompt"]))
+    if blocked:
+        log_krea_safety_block(blocked, "worker")
+        raise RuntimeError("Krea 2安全フィルターにより生成を拒否しました")
     if not model_available(model_key):
         raise RuntimeError(f"model is not installed: {model_key}")
     ratio = row["ratio"]
@@ -518,26 +589,36 @@ def run_job(row: sqlite3.Row) -> str:
         trigger_word=row["trigger_word"],
         style_key=row["style_key"],
     )
-    return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]))
+    return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]), krea_output=True)
 
 
-def _wait_for_comfy(prompt_id: str, job_id: int, *, h3_output: bool = False) -> str:
+def _wait_for_comfy(
+    prompt_id: str, job_id: int, *, h3_output: bool = False, krea_output: bool = False
+) -> str:
     deadline = time.time() + JOB_TIMEOUT_SEC
     while time.time() < deadline:
         if cancel_requested(job_id):
             try:
-                urllib.request.urlopen(
+                urllib.request.urlopen(  # nosec B310
                     urllib.request.Request(f"{COMFY_URL}/interrupt", data=b"", method="POST"),
                     timeout=10,
                 )
-            except Exception:
+            except Exception:  # nosec B110
                 pass
             raise RuntimeError("canceled")
         try:
-            with urllib.request.urlopen(f"{COMFY_URL}/history/{prompt_id}", timeout=10) as response:
+            with urllib.request.urlopen(  # nosec B310
+                f"{COMFY_URL}/history/{prompt_id}", timeout=10
+            ) as response:
                 history = json.load(response)
             if prompt_id in history:
-                return _copy_comfy_output(history, prompt_id, job_id, h3_output=h3_output)
+                return _copy_comfy_output(
+                    history,
+                    prompt_id,
+                    job_id,
+                    h3_output=h3_output,
+                    krea_output=krea_output,
+                )
         except urllib.error.URLError:
             pass
         time.sleep(2)
@@ -627,6 +708,7 @@ async def authentication(request: Request, call_next):
         "/api/login",
         "/healthz",
         "/legal/minimax-h3-license",
+        "/legal/krea2-terms",
         "/legal/h3-terms",
         "/legal/h3-enforcement",
     }
@@ -653,6 +735,11 @@ def healthz():
 @app.get("/legal/minimax-h3-license", response_class=PlainTextResponse)
 def minimax_h3_license():
     return PlainTextResponse(H3_LICENSE_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/legal/krea2-terms", response_class=PlainTextResponse)
+def krea2_terms():
+    return PlainTextResponse(KREA_TERMS_PATH.read_text(encoding="utf-8"))
 
 
 @app.get("/legal/h3-terms", response_class=PlainTextResponse)
@@ -743,8 +830,74 @@ def api_config():
 @app.get("/api/models")
 def api_models():
     result = model_public_status()
+    result["krea"] = api_krea_status()
     result["h3"] = api_h3_status()
     return result
+
+
+@app.get("/api/krea/status")
+def api_krea_status():
+    accepted = krea_acceptance()
+    return {
+        "model_name": "Krea 2",
+        "accepted": bool(accepted),
+        "accepted_at": accepted.get("accepted_at") if accepted else None,
+        "license_version": KREA_LICENSE_VERSION,
+        "license_sha256": KREA_LICENSE_SHA256,
+        "license_url": KREA_LICENSE_URL,
+        "aup_url": KREA_AUP_URL,
+        "terms_version": KREA_TERMS_VERSION,
+        "terms_url": "/legal/krea2-terms",
+        "safety_filter": True,
+        "human_output_review_required": True,
+    }
+
+
+@app.post("/api/krea/accept")
+def api_krea_accept(
+    license_confirm: str = Form(...),
+    revenue_confirm: str = Form(...),
+    aup_confirm: str = Form(...),
+    rights_confirm: str = Form(...),
+    filtering_confirm: str = Form(...),
+):
+    submitted = (
+        license_confirm,
+        revenue_confirm,
+        aup_confirm,
+        rights_confirm,
+        filtering_confirm,
+    )
+    if any(value != "yes" for value in submitted):
+        return JSONResponse({"error": "5項目すべてへの同意が必要です"}, status_code=400)
+    accepted_at = datetime.now(timezone.utc).isoformat()
+    record = {
+        "accepted": True,
+        "acceptance_id": secrets.token_hex(16),
+        "accepted_at": accepted_at,
+        "accepted_at_epoch": time.time(),
+        "app_version": VERSION,
+        "license_version": KREA_LICENSE_VERSION,
+        "license_sha256": KREA_LICENSE_SHA256,
+        "terms_version": KREA_TERMS_VERSION,
+        "aup_url": KREA_AUP_URL,
+        "confirmations": {key: True for key in KREA_CONFIRMATION_KEYS},
+    }
+    with KREA_ACCEPTANCE_LOCK:
+        with KREA_ACCEPTANCE_LOG_FILE.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        KREA_ACCEPTANCE_LOG_FILE.chmod(0o600)
+        temporary = KREA_ACCEPTANCE_FILE.with_name(
+            f".{KREA_ACCEPTANCE_FILE.name}.{secrets.token_hex(8)}.tmp"
+        )
+        temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.chmod(0o600)
+        temporary.replace(KREA_ACCEPTANCE_FILE)
+        KREA_ACCEPTANCE_FILE.chmod(0o600)
+    touch_activity()
+    return api_krea_status()
 
 
 @app.get("/api/h3/status")
@@ -833,6 +986,10 @@ def api_h3_accept(
 @app.post("/api/models/install/{package_key}")
 def api_models_install(package_key: str):
     package = MODEL_PACKAGES.get(package_key)
+    if package and package.get("requires_krea_terms"):
+        allowed, reason = krea_ready_for_access()
+        if not allowed:
+            return JSONResponse({"error": reason}, status_code=451)
     if package and package.get("requires_h3_terms"):
         allowed, reason = h3_ready_for_access()
         if not allowed:
@@ -874,11 +1031,25 @@ def api_generate(
     lora_strength: float = Form(1.0),
     trigger_word: str = Form(""),
 ):
+    allowed, reason = krea_ready_for_access()
+    if not allowed:
+        return JSONResponse({"error": reason}, status_code=451)
     prompt = prompt.strip()
     if not prompt or len(prompt) > MAX_PROMPT_LENGTH:
         return JSONResponse({"error": "プロンプトが空か、長すぎます"}, status_code=400)
     if model_key not in MODEL_DEFINITIONS or not model_available(model_key):
         return JSONResponse({"error": "選択したモデルは利用できません"}, status_code=400)
+    blocked = blocked_krea_categories(prompt)
+    if blocked:
+        log_krea_safety_block(blocked, "request")
+        return JSONResponse(
+            {
+                "error": "Krea 2安全フィルターにより生成を拒否しました。利用条件を確認してください。",
+                "categories": blocked,
+                "report_url": KREA_AUP_URL,
+            },
+            status_code=422,
+        )
     if ratio not in SIZES or style_key not in STYLES:
         return JSONResponse({"error": "比率またはスタイルが不正です"}, status_code=400)
     if not 0 <= lora_strength <= 2:
@@ -1012,7 +1183,8 @@ def api_image(name: str):
     if not path.is_file() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
         return JSONResponse({"error": "画像が見つかりません"}, status_code=404)
     touch_activity()
-    return FileResponse(path, filename=clean)
+    headers = {"X-AI-Generated-By": "Krea 2"} if "-krea2-ai" in clean else {}
+    return FileResponse(path, filename=clean, headers=headers)
 
 
 @app.get("/api/outputs/{name}")
@@ -1025,6 +1197,8 @@ def api_output(name: str):
     headers = {}
     if "-minimax-h3-ai" in clean:
         headers["X-AI-Generated-By"] = "MiniMax H3"
+    elif "-krea2-ai" in clean:
+        headers["X-AI-Generated-By"] = "Krea 2"
     return FileResponse(path, filename=clean, headers=headers)
 
 
@@ -1074,7 +1248,7 @@ def _pod_request(action: str) -> None:
         data=b"{}" if method == "POST" else None,
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
             status = int(getattr(response, "status", 200))
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"RunPod API HTTP {exc.code}") from exc

@@ -1,0 +1,6 @@
+Krea 2 is licensed under the Krea 2 Community License Agreement.
+For more information, visit https://krea.ai/krea-2-licensing.
+
+The Krea 2 model weights are not included in ACS ImageGen Lite. After the user
+accepts the Krea 2 license and Acceptable Use Policy, the application downloads
+the selected files from the official Comfy-Org repository on Hugging Face.

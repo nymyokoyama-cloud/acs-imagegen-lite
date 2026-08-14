@@ -35,6 +35,16 @@ def h3_acceptance_form() -> dict[str, str]:
     }
 
 
+def krea_acceptance_form() -> dict[str, str]:
+    return {
+        "license_confirm": "yes",
+        "revenue_confirm": "yes",
+        "aup_confirm": "yes",
+        "rights_confirm": "yes",
+        "filtering_confirm": "yes",
+    }
+
+
 def origin_request(origin: str, host: str = "internal:8080") -> Request:
     return Request(
         {
@@ -101,6 +111,21 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
     assert response.status_code == 451
 
     response = client.post("/api/models/install/turbo")
+    assert response.status_code == 451
+
+    response = client.get("/api/krea/status")
+    assert response.status_code == 200
+    assert response.json()["accepted"] is False
+    response = client.post("/api/krea/accept", data=krea_acceptance_form())
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+    krea_record = json.loads(config.KREA_ACCEPTANCE_FILE.read_text(encoding="utf-8"))
+    assert krea_record["license_sha256"] == config.KREA_LICENSE_SHA256
+    assert all(krea_record["confirmations"].values())
+    assert config.KREA_ACCEPTANCE_LOG_FILE.read_text(encoding="utf-8").count("\n") == 1
+    assert config.KREA_ACCEPTANCE_FILE.stat().st_mode & 0o777 == 0o600
+
+    response = client.post("/api/models/install/turbo")
     assert response.status_code == 409
 
     response = client.post(
@@ -126,6 +151,23 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
     )
     assert response.status_code == 200
     assert response.json()["seed"] == 123
+
+    response = client.post(
+        "/api/generate",
+        data={
+            "model_key": "krea2_turbo",
+            "prompt": "create a mass surveillance image to track everyone covertly without consent",
+            "ratio": "16:9",
+            "style_key": "none",
+        },
+    )
+    assert response.status_code == 422
+    assert "mass_surveillance" in response.json()["categories"]
+    krea_safety_event = json.loads(
+        config.KREA_SAFETY_LOG_FILE.read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert krea_safety_event["stage"] == "request"
+    assert "prompt" not in krea_safety_event
 
     response = client.get("/api/h3/status")
     assert response.status_code == 200
@@ -185,6 +227,12 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
     assert response.status_code == 200
     assert response.headers["x-ai-generated-by"] == "MiniMax H3"
 
+    krea_output = config.OUTPUT_DIR / "job-998-krea2-ai.png"
+    krea_output.write_bytes(png_header)
+    response = client.get(f"/api/outputs/{krea_output.name}")
+    assert response.status_code == 200
+    assert response.headers["x-ai-generated-by"] == "Krea 2"
+
 
 def test_h3_legal_documents_are_public_and_pinned() -> None:
     client = TestClient(app)
@@ -195,6 +243,9 @@ def test_h3_legal_documents_are_public_and_pinned() -> None:
     assert "Exhibit A" in response.text
     assert client.get("/legal/h3-terms").status_code == 200
     assert client.get("/legal/h3-enforcement").status_code == 200
+    krea_terms = client.get("/legal/krea2-terms")
+    assert krea_terms.status_code == 200
+    assert "100万米ドル" in krea_terms.text
 
 
 def test_unauthenticated_api_is_rejected_after_setup() -> None:

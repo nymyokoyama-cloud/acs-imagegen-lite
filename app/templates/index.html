@@ -29,6 +29,25 @@
       <button id="cancel-download" class="btn secondary" type="button" disabled>モデル取得を中断</button>
     </section>
 
+    <section id="krea-terms" class="card terms wide">
+      <h2>Krea 2 利用条件への同意</h2>
+      <p>Krea2 Turbo / RawにはKrea 2 Community LicenseとAcceptable Use Policyが適用されます。</p>
+      <div class="legal-links"><a id="krea-license" href="https://huggingface.co/Comfy-Org/Krea-2/blob/main/LICENSE.pdf" target="_blank" rel="noopener">公式ライセンスPDF</a><a id="krea-aup" href="https://www.krea.ai/krea-2-use-policy" target="_blank" rel="noopener">公式Acceptable Use Policy</a><a href="/legal/krea2-terms" target="_blank">日本語の利用条件</a></div>
+      <div id="krea-accepted" class="success hidden">確認済みです。Krea2の取得と画像生成を利用できます。</div>
+      <form id="krea-accept-form">
+        <p class="warning">「確認してKrea2を有効化」を押すと、次の5項目を確認した記録がこのPodへ保存されます。</p>
+        <div class="terms-list">
+          <label class="check"><input type="checkbox" name="license_confirm" value="yes" required><span>公式ライセンスPDFを読み、Krea 2 Community Licenseに従います。</span></label>
+          <label class="check"><input type="checkbox" name="revenue_confirm" value="yes" required><span>商用利用の場合、関連会社を含む直近12か月の会社全体売上は100万米ドル未満です。以上の場合は利用前にEnterprise Licenseを取得します。</span></label>
+          <label class="check"><input type="checkbox" name="aup_confirm" value="yes" required><span>Acceptable Use Policyを読み、禁止用途や安全機能の回避に使いません。</span></label>
+          <label class="check"><input type="checkbox" name="rights_confirm" value="yes" required><span>入力、LoRA、人物、生成物に必要な権利と同意を持っています。</span></label>
+          <label class="check"><input type="checkbox" name="filtering_confirm" value="yes" required><span>安全検査を無効化せず、完成画像を人が確認してから利用・公開し、問題がある出力は削除します。</span></label>
+        </div>
+        <button id="krea-accept" class="btn" type="submit">確認してKrea2を有効化</button>
+      </form>
+      <p class="hint">Lite版は受付時と実行直前にプロンプトを検査します。自動検査だけでは完成画像の全内容を判断できないため、人による出力確認が必要です。</p>
+    </section>
+
     <section id="h3-terms" class="card terms wide">
       <h2>MiniMax H3 利用条件への同意</h2>
       <p><strong>MiniMax H3</strong> is licensed under the MiniMax H3 Community License Agreement, Copyright © 2026 MiniMax. All Rights Reserved.</p>
@@ -72,6 +91,7 @@
         </div>
         <button id="image-submit" class="btn full" type="submit">画像生成をキューへ追加</button>
         <p id="image-message" class="quiet"></p>
+        <p class="hint">完成画像は公開・利用前に人が確認してください。法令や投稿先の規約で必要な場合はAI生成であることを表示します。</p>
       </form>
       <details><summary>自分のLoRAを追加</summary><label>.safetensors<input id="lora-file" type="file" accept=".safetensors"></label><button id="upload-lora" class="btn secondary full" type="button">アップロード</button><p id="upload-message" class="quiet"></p></details>
     </section>
@@ -117,16 +137,17 @@
 <dialog id="viewer"><img id="viewer-img" alt="生成画像"><button class="btn secondary" onclick="this.parentElement.close()">閉じる</button></dialog>
 <script>
 const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const state={config:null,models:null,h3:null,comfy:false};
+const state={config:null,models:null,krea:null,h3:null,comfy:false};
 async function jsonFetch(url,opt={}){const r=await fetch(url,opt);let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
 const gb=n=>(Number(n)/1e9).toFixed(1)+'GB';
 function setOptions(el,items,valueKey='key',labelKey='label'){el.innerHTML='';for(const item of items){const o=document.createElement('option');o.value=item[valueKey];o.textContent=item[labelKey];el.appendChild(o)}}
 async function loadConfig(){state.config=await jsonFetch('/api/config');setOptions($('model'),state.config.models);setOptions($('ratio'),state.config.ratios.map(x=>({key:x,label:x})));setOptions($('h3-ratio'),state.config.h3_ratios.map(x=>({key:x,label:x})));setOptions($('style'),state.config.styles);$('lora').innerHTML='<option value="">使用しない</option>'+state.config.loras.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} (${gb(x.size)})</option>`).join('');$('storage').textContent=state.config.storage_mode==='network'?'Network Volume接続中：Pod削除後もモデル等を保持します。Volume料金は継続します。':'一時ディスク：Podの完全削除が完了するとモデル等も消え、以後の継続ストレージ料金は発生しません。';updateModelNote()}
+function renderKrea(k){state.krea=k;$('krea-accepted').classList.toggle('hidden',!k.accepted);$('krea-accepted').textContent=k.accepted?`確認済み（条件版 ${k.terms_version}）。Krea2の取得と画像生成を利用できます。`:'';$('krea-accept-form').classList.toggle('hidden',k.accepted);$('krea-license').href=k.license_url;$('krea-aup').href=k.aup_url;updateGenerateState()}
 function renderH3(h){state.h3=h;const allowed=h.region.allowed;$('h3-region').className=allowed?'success':'error';$('h3-region').textContent=h.region.reason;$('h3-accepted').classList.toggle('hidden',!h.accepted);$('h3-accepted').textContent=h.accepted?`同意記録済み（条件版 ${h.terms_version}）。H3の取得と動画生成を利用できます。`:'';$('h3-accept-form').classList.toggle('hidden',h.accepted);$('h3-accept').disabled=!allowed;$('h3-report').href=h.report_url;updateGenerateState()}
-function renderModelManager(m){state.models=m;renderH3(m.h3);$('packages').innerHTML='';for(const p of m.packages){const div=document.createElement('div');div.className='package';const blocked=p.requires_h3_terms&&(!m.h3.accepted||!m.h3.region.allowed);div.innerHTML=`<strong>${esc(p.label)}</strong><span class="badge ${p.verified?'done':''}">${p.verified?'準備済み':gb(p.size)}</span><p class="quiet">${esc(p.description)}</p><button class="btn ${p.key==='recommended'?'':'secondary'}" data-package="${esc(p.key)}" ${p.verified||blocked||m.download_disabled?'disabled':''}>${p.verified?'準備済み':'この構成を入れる'}</button>`;$('packages').appendChild(div)}document.querySelectorAll('[data-package]').forEach(b=>b.onclick=()=>installModels(b.dataset.package));const s=m.state,p=Number(s.percent||0);$('model-progress').style.width=Math.max(0,Math.min(100,p))+'%';$('model-message').textContent=s.error?`${s.message}: ${s.error}`:s.message;$('model-message').className=s.error?'error':'quiet';$('model-capacity').textContent=`空き容量 ${gb(m.free_bytes)}${s.total_size?` / 選択セット ${gb(s.total_size)}`:''}`;$('cancel-download').disabled=!['starting','downloading','verifying'].includes(s.status);updateGenerateState()}
+function renderModelManager(m){state.models=m;renderKrea(m.krea);renderH3(m.h3);$('packages').innerHTML='';for(const p of m.packages){const div=document.createElement('div');div.className='package';const blocked=(p.requires_krea_terms&&!m.krea.accepted)||(p.requires_h3_terms&&(!m.h3.accepted||!m.h3.region.allowed));div.innerHTML=`<strong>${esc(p.label)}</strong><span class="badge ${p.verified?'done':''}">${p.verified?'準備済み':gb(p.size)}</span><p class="quiet">${esc(p.description)}</p><button class="btn ${p.key==='recommended'?'':'secondary'}" data-package="${esc(p.key)}" ${p.verified||blocked||m.download_disabled?'disabled':''}>${p.verified?'準備済み':'この構成を入れる'}</button>`;$('packages').appendChild(div)}document.querySelectorAll('[data-package]').forEach(b=>b.onclick=()=>installModels(b.dataset.package));const s=m.state,p=Number(s.percent||0);$('model-progress').style.width=Math.max(0,Math.min(100,p))+'%';$('model-message').textContent=s.error?`${s.message}: ${s.error}`:s.message;$('model-message').className=s.error?'error':'quiet';$('model-capacity').textContent=`空き容量 ${gb(m.free_bytes)}${s.total_size?` / 選択セット ${gb(s.total_size)}`:''}`;$('cancel-download').disabled=!['starting','downloading','verifying'].includes(s.status);updateGenerateState()}
 async function installModels(key){try{renderModelManager(await jsonFetch(`/api/models/install/${key}`,{method:'POST'}))}catch(e){$('model-message').className='error';$('model-message').textContent=e.message}}
 function updateModelNote(){const item=state.config?.models.find(x=>x.key===$('model').value);$('negative-wrap').classList.toggle('hidden',!item?.negative)}
-function updateGenerateState(){const selected=state.config?.models.find(x=>x.key===$('model').value);$('image-submit').disabled=!(state.comfy&&selected?.available);$('video-submit').disabled=!(state.comfy&&state.h3?.available&&state.h3?.accepted&&state.h3?.region?.allowed)}
+function updateGenerateState(){const selected=state.config?.models.find(x=>x.key===$('model').value);$('image-submit').disabled=!(state.comfy&&state.krea?.accepted&&selected?.available);$('video-submit').disabled=!(state.comfy&&state.h3?.available&&state.h3?.accepted&&state.h3?.region?.allowed)}
 function setVideoMode(mode){$('video-mode').value=mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));$('first-frame-wrap').classList.toggle('hidden',mode==='t2v');$('last-frame-wrap').classList.toggle('hidden',mode!=='flf');$('first-frame').required=mode!=='t2v';$('last-frame').required=mode==='flf'}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setVideoMode(b.dataset.mode));
 function statusLabel(s){return({queued:'待機',running:'生成中',done:'完了',error:'エラー',canceled:'停止'}[s]||s)}
@@ -136,6 +157,7 @@ function renderGallery(jobs){const done=jobs.filter(j=>j.status==='done'&&j.outp
 async function poll(){try{const [d,m]=await Promise.all([jsonFetch('/api/status'),jsonFetch('/api/models')]);state.comfy=d.comfy;$('dot').classList.toggle('ok',d.comfy);$('engine').textContent=d.comfy?`生成エンジン稼働・待機${d.pending}`:'生成エンジン準備中';renderModelManager(m);if(state.config){state.config.h3_available=m.h3.available;state.config.models.forEach(x=>x.available=m.files.some(f=>f.installed&&((x.key==='krea2_turbo'&&f.filename.includes('krea2_turbo'))||(x.key==='krea2_raw'&&f.filename.includes('krea2_raw')))));}renderJobs(d.jobs);renderGallery(d.jobs)}catch(e){$('engine').textContent='接続エラー'}}
 $('model').onchange=()=>{updateModelNote();updateGenerateState()};
 $('cancel-download').onclick=async()=>{try{renderModelManager(await jsonFetch('/api/models/cancel',{method:'POST'}))}catch(e){$('model-message').className='error';$('model-message').textContent=e.message}};
+$('krea-accept-form').onsubmit=async e=>{e.preventDefault();try{renderKrea(await jsonFetch('/api/krea/accept',{method:'POST',body:new FormData(e.target)}));await poll()}catch(err){$('model-message').className='error';$('model-message').textContent=err.message}};
 $('h3-accept-form').onsubmit=async e=>{e.preventDefault();try{renderH3(await jsonFetch('/api/h3/accept',{method:'POST',body:new FormData(e.target)}));await poll()}catch(err){$('h3-region').className='error';$('h3-region').textContent=err.message}};
 $('image-form').onsubmit=async e=>{e.preventDefault();$('image-message').textContent='送信中';try{const d=await jsonFetch('/api/generate',{method:'POST',body:new FormData(e.target)});$('image-message').className='success';$('image-message').textContent=`ジョブ #${d.job_id} を追加しました・Seed ${d.seed}`;await poll()}catch(err){$('image-message').className='error';$('image-message').textContent=err.message}};
 $('video-form').onsubmit=async e=>{e.preventDefault();$('video-message').textContent='送信中';try{const d=await jsonFetch('/api/video/generate',{method:'POST',body:new FormData(e.target)});$('video-message').className='success';$('video-message').textContent=`動画ジョブ #${d.job_id} を追加しました・Seed ${d.seed}`;await poll()}catch(err){$('video-message').className='error';$('video-message').textContent=err.message}};

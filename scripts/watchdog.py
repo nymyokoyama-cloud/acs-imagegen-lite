@@ -73,7 +73,7 @@ def request_pod_action(action: str) -> None:
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         data=b"{}" if method == "POST" else None,
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310
         status = int(getattr(response, "status", 200))
     if not 200 <= status < 300:
         raise RuntimeError(f"RunPod API HTTP {status}")

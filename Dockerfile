@@ -25,8 +25,8 @@ RUN python -m pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
 
 COPY app /opt/acs-imagegen-lite/app
 COPY scripts /opt/acs-imagegen-lite/scripts
-COPY MINIMAX_H3_LICENSE.txt MINIMAX_H3_NOTICE.txt THIRD_PARTY_NOTICES.md /opt/acs-imagegen-lite/
-COPY docs/H3-TERMS.md docs/H3-ENFORCEMENT.md /opt/acs-imagegen-lite/docs/
+COPY KREA2_NOTICE.txt MINIMAX_H3_LICENSE.txt MINIMAX_H3_NOTICE.txt THIRD_PARTY_NOTICES.md /opt/acs-imagegen-lite/
+COPY docs/KREA2-TERMS.md docs/H3-TERMS.md docs/H3-ENFORCEMENT.md /opt/acs-imagegen-lite/docs/
 RUN chmod 0755 /opt/acs-imagegen-lite/scripts/bootstrap.sh /opt/acs-imagegen-lite/scripts/start.sh
 
 WORKDIR /opt/acs-imagegen-lite

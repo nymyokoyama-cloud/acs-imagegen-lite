@@ -40,7 +40,8 @@ download_model() {
   echo "Downloading: $relative_path"
   HF_XET_HIGH_PERFORMANCE=1 HF_HUB_DISABLE_PROGRESS_BARS=1 \
     python "$project_dir/scripts/hf_download_file.py" \
-      "Comfy-Org/Krea-2" "$relative_path" "$model_root"
+      "Comfy-Org/Krea-2" "952f49d49653cb42e7d6cf7cbfad74738073ec7d" \
+      "$relative_path" "$model_root"
   if ! verify_sha256 "$target" "$expected"; then
     echo "SHA-256 verification failed: $relative_path" >&2
     return 1

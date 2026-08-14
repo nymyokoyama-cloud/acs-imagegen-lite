@@ -6,9 +6,12 @@ ACS ImageGen Lite本体とは別に、次の第三者ソフトウェアとモデ
 
 - 配布元: https://huggingface.co/Comfy-Org/Krea-2
 - ライセンス原文: https://huggingface.co/Comfy-Org/Krea-2/blob/main/LICENSE.pdf
+- Acceptable Use Policy: https://www.krea.ai/krea-2-use-policy
+- 確認時のライセンスPDF SHA-256: `b82a2805162bde714a4eb27b9063c4fc3345d08a30be055134a6160e5430ba74`
+- 必須表示: `KREA2_NOTICE.txt`
 - Lite版が初回取得するもの: Turbo FP8、Raw FP8、Qwen3-VL FP8 text encoder、Qwen image VAE
 
-Krea 2には独自ライセンスが適用されます。利用者はモデルと生成物を使用する前に原文を確認してください。Lite版はモデルを再配布せず、公式URLから取得します。
+Krea 2には独自ライセンスが適用されます。商用利用は関連会社を含む会社全体の直近12か月売上100万米ドル未満に限られ、以上の場合はKreaのEnterprise Licenseが必要です。デプロイ時は合理的なContent Filtersも必要です。Lite版はモデルを再配布せず、公式URLから取得し、5項目同意、受付時と実行直前のプロンプト検査、人による完成画像確認、AI生成ファイル名とヘッダーを実装します。
 
 ## ComfyUI
 

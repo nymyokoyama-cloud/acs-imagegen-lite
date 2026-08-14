@@ -4,11 +4,13 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
+# Subprocess uses the fixed interpreter and allowlisted model arguments, never a shell.
+import subprocess  # nosec B404
 import sys
 import threading
 import time
 import urllib.request
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -141,6 +143,7 @@ def public_status() -> dict[str, Any]:
                 "installed": all(item["installed"] for item in selected),
                 "verified": all(item["verified"] for item in selected),
                 "partial_size": sum(item["partial_size"] for item in selected),
+                "requires_krea_terms": bool(definition.get("requires_krea_terms", False)),
                 "requires_h3_terms": bool(definition.get("requires_h3_terms", False)),
             }
         )
@@ -197,6 +200,9 @@ def _save_verified(file_key: str, path: Path) -> None:
 
 
 def _download_stream(url: str, partial: Path, expected_size: int, progress) -> None:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in {"https", "file"}:
+        raise RuntimeError("モデル取得URLの方式が許可されていません")
     existing = partial.stat().st_size if partial.is_file() else 0
     if existing > expected_size:
         partial.rename(partial.with_suffix(partial.suffix + f".invalid.{int(time.time())}"))
@@ -204,13 +210,13 @@ def _download_stream(url: str, partial: Path, expected_size: int, progress) -> N
     request = urllib.request.Request(url, headers={"User-Agent": f"ACS-ImageGen-Lite/{VERSION}"})
     if existing:
         request.add_header("Range", f"bytes={existing}-")
-    response = urllib.request.urlopen(request, timeout=60)
+    response = urllib.request.urlopen(request, timeout=60)  # nosec B310
     status = getattr(response, "status", None)
     if existing and status != 206:
         response.close()
         existing = 0
         request = urllib.request.Request(url, headers={"User-Agent": f"ACS-ImageGen-Lite/{VERSION}"})
-        response = urllib.request.urlopen(request, timeout=60)
+        response = urllib.request.urlopen(request, timeout=60)  # nosec B310
     mode = "ab" if existing else "wb"
     downloaded = existing
     last_write = 0.0
@@ -229,12 +235,26 @@ def _download_stream(url: str, partial: Path, expected_size: int, progress) -> N
         raise RuntimeError(f"受信サイズが一致しません: {downloaded} / {expected_size}")
 
 
-def _download_huggingface(repo_id: str, relative_path: str, target: Path, expected_size: int, progress) -> None:
+def _download_huggingface(
+    repo_id: str,
+    revision: str,
+    relative_path: str,
+    target: Path,
+    expected_size: int,
+    progress,
+) -> None:
     env = os.environ.copy()
     env["HF_XET_HIGH_PERFORMANCE"] = "1"
     env["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
     process = subprocess.Popen(
-        [sys.executable, str(HF_DOWNLOAD_SCRIPT), repo_id, relative_path, str(MODEL_ROOT)],
+        [
+            sys.executable,
+            str(HF_DOWNLOAD_SCRIPT),
+            repo_id,
+            revision,
+            relative_path,
+            str(MODEL_ROOT),
+        ],  # nosec B603
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -318,6 +338,7 @@ def _prepare_file(file_key: str, completed_before: int, total_size: int, index: 
     if accelerated:
         _download_huggingface(
             str(definition["repo_id"]),
+            str(definition["revision"]),
             str(definition["relative_path"]),
             target,
             expected_size,
