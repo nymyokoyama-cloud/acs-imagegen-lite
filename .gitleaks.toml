@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "RunPod template contains public ACS environment-variable names, not credential values"
+paths = ['''runpod-template\.json''']
+regexTarget = "match"
+regexes = ['''"key"\s*:\s*"ACS_[A-Z_]+"''']

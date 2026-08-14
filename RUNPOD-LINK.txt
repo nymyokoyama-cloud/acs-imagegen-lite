@@ -1,0 +1,8 @@
+RunPodで起動
+https://console.runpod.io/deploy?template=evkauvs9oe
+
+H3を使う場合は日本リージョン AP-JP-1 のH200を選択してください。
+Krea2だけの場合も24GB以上のGPUを目安にしてください。
+一時ディスクは150GBが既定です。
+
+終了時はACS ImageGen Liteの「Podを完全削除」を押し、最後にRunPodコンソールで対象Podが消えたことを確認してください。

@@ -34,8 +34,8 @@ RunPodアカウントと支払い設定が済んでいれば、一般利用者�
 ## 開発
 
 ```bash
-docker build -t acs-imagegen-lite:0.3.0-rc6 .
-docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc6
+docker build -t acs-imagegen-lite:0.3.0 .
+docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0
 ```
 
 ```bash
@@ -43,4 +43,4 @@ docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc6
 bash -n scripts/bootstrap.sh scripts/start.sh
 ```
 
-公開前候補です。RC4でH200実機のH3 3動画モードを確認済みです。RC6ではモデル高速取得、終了結果表示、Krea 2の公式条件ゲートと安全対策を追加し、一般配布前の最終実機確認を行います。
+安定版0.3.0です。H200実機でH3の3動画モードを確認し、モデル高速取得、終了結果表示、Krea 2の公式条件ゲートと安全対策を実装しています。実測条件と結果は[検証記録](docs/VALIDATION-2026-08-14.md)を確認してください。
