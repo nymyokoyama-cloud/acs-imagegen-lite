@@ -4,9 +4,10 @@ import hashlib
 import json
 
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from app import config
-from app.server import app
+from app.server import app, same_origin
 
 
 def install_dummy_models() -> None:
@@ -30,6 +31,36 @@ def h3_acceptance_form() -> dict[str, str]:
         "no_training_confirm": "yes",
         "reporting_confirm": "yes",
     }
+
+
+def origin_request(origin: str, host: str = "internal:8080") -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/login",
+            "raw_path": b"/api/login",
+            "query_string": b"",
+            "headers": [
+                (b"origin", origin.encode("ascii")),
+                (b"host", host.encode("ascii")),
+            ],
+            "client": ("127.0.0.1", 12345),
+            "server": ("internal", 8080),
+        }
+    )
+
+
+def test_same_origin_allows_exact_runpod_proxy(monkeypatch) -> None:
+    monkeypatch.setenv("RUNPOD_POD_ID", "pod123abc")
+    assert same_origin(origin_request("https://pod123abc-8080.proxy.runpod.net")) is True
+    assert same_origin(origin_request("https://otherpod-8080.proxy.runpod.net")) is False
+
+
+def test_same_origin_still_allows_direct_host(monkeypatch) -> None:
+    monkeypatch.delenv("RUNPOD_POD_ID", raising=False)
+    assert same_origin(origin_request("http://localhost:8080", "localhost:8080")) is True
 
 
 def test_setup_login_config_generate_and_lora_upload() -> None:

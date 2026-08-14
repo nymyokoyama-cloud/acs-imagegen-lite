@@ -33,8 +33,8 @@ RunPodアカウントと支払い設定が済んでいれば、一般利用者�
 ## 開発
 
 ```bash
-docker build -t acs-imagegen-lite:0.3.0-rc3 .
-docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc3
+docker build -t acs-imagegen-lite:0.3.0-rc4 .
+docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc4
 ```
 
 ```bash

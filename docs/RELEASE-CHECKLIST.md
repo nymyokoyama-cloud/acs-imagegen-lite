@@ -18,8 +18,9 @@
 - [x] RC2 Dockerイメージをbuild
 - [ ] 脆弱性スキャン
 - [x] RC2イメージをGHCRへpush
-- [ ] RC3イメージをbuild・スキャン・GHCRへpush
-- [ ] `runpod-template.json`のイメージ名をRC3へ更新
+- [x] RC3イメージをbuild・GHCRへpush
+- [ ] RC4イメージをbuild・スキャン・GHCRへpush
+- [x] `runpod-template.json`のイメージ名をRC4へ更新
 - [x] RunPod非公開テンプレート作成
 - [ ] RunPod公開テンプレート作成（法務・H200実測後）
 - [ ] 公開テンプレートURLをスターターパックへ追加

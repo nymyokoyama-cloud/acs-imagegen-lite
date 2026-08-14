@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import shutil
 import sqlite3
@@ -243,8 +244,19 @@ def same_origin(request: Request) -> bool:
     if not origin:
         return True
     parsed = urllib.parse.urlparse(origin)
-    request_host = request.headers.get("host", "").split(":", 1)[0].lower()
-    return parsed.scheme in {"http", "https"} and parsed.hostname == request_host
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+
+    origin_host = parsed.hostname.lower().rstrip(".")
+    request_host = request.headers.get("host", "").strip()
+    host_parsed = urllib.parse.urlparse(f"//{request_host}")
+    if host_parsed.hostname and origin_host == host_parsed.hostname.lower().rstrip("."):
+        return True
+
+    pod_id = os.environ.get("RUNPOD_POD_ID", "").strip().lower()
+    if re.fullmatch(r"[a-z0-9-]{1,64}", pod_id):
+        return origin_host == f"{pod_id}-8080.proxy.runpod.net"
+    return False
 
 
 initialize_password_from_env()
