@@ -12,9 +12,24 @@ DATA_DIR = Path(os.environ.get("ACS_LITE_DATA_DIR", "/workspace/acs-imagegen-lit
 DB_PATH = DATA_DIR / "jobs.db"
 ACTIVITY_FILE = DATA_DIR / "last_activity"
 MODEL_STATE_FILE = DATA_DIR / "model_download_state.json"
+POD_ACTION_STATE_FILE = DATA_DIR / "pod_action_state.json"
 IDLE_SECONDS = max(5, int(os.environ.get("ACS_IDLE_MINUTES", "20"))) * 60
 MAX_UPTIME_SECONDS = max(15, int(os.environ.get("ACS_MAX_UPTIME_MINUTES", "180"))) * 60
 CHECK_SECONDS = max(10, int(os.environ.get("ACS_WATCHDOG_INTERVAL", "30")))
+
+
+def write_action_state(**values: object) -> None:
+    try:
+        state = json.loads(POD_ACTION_STATE_FILE.read_text(encoding="utf-8"))
+        if not isinstance(state, dict):
+            state = {}
+    except (OSError, ValueError, TypeError):
+        state = {}
+    state.update(values)
+    temporary = POD_ACTION_STATE_FILE.with_name(f".{POD_ACTION_STATE_FILE.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    temporary.replace(POD_ACTION_STATE_FILE)
 
 
 def active_job_exists() -> bool:
@@ -45,7 +60,7 @@ def selected_action() -> str:
 
 def request_pod_action(action: str) -> None:
     pod_id = os.environ.get("RUNPOD_POD_ID", "")
-    api_key = os.environ.get("RUNPOD_API_KEY", "")
+    api_key = os.environ.get("ACS_RUNPOD_API_KEY", "") or os.environ.get("RUNPOD_API_KEY", "")
     if not pod_id or not api_key:
         raise RuntimeError("RUNPOD_POD_ID or RUNPOD_API_KEY is missing")
     if action == "stop":
@@ -58,8 +73,10 @@ def request_pod_action(action: str) -> None:
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         data=b"{}" if method == "POST" else None,
     )
-    with urllib.request.urlopen(request, timeout=30):
-        pass
+    with urllib.request.urlopen(request, timeout=30) as response:
+        status = int(getattr(response, "status", 200))
+    if not 200 <= status < 300:
+        raise RuntimeError(f"RunPod API HTTP {status}")
 
 
 def main() -> None:
@@ -83,12 +100,29 @@ def main() -> None:
             continue
         action = selected_action()
         print(json.dumps({"watchdog": reason, "action": action}), flush=True)
+        write_action_state(
+            status="pending",
+            action=action,
+            message=f"自動終了を実行中（{reason}）",
+            requested_at=time.time(),
+            finished_at=None,
+        )
         try:
             request_pod_action(action)
+            write_action_state(
+                status="sent",
+                message="RunPod APIが自動終了要求を受理しました。コンソールで最終状態を確認してください",
+                finished_at=time.time(),
+            )
             return
         except Exception as exc:
             print(json.dumps({"watchdog_error": str(exc)}), flush=True)
-            ACTIVITY_FILE.touch()
+            write_action_state(
+                status="error",
+                message="自動終了に失敗しました。RunPodコンソールから終了してください",
+                finished_at=time.time(),
+            )
+            time.sleep(min(300, CHECK_SECONDS * 4))
 
 
 if __name__ == "__main__":

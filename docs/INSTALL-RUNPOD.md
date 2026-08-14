@@ -9,10 +9,11 @@
 5. Deploy後、Connect画面からHTTP Port 8080を開きます。
 6. 10文字以上のパスワードを設定してログインします。
 7. H3を使う場合は同梱ライセンス全文と日本語条件を読み、画面の7項目へ同意します。
-8. 「おすすめ：Krea2 Turbo + MiniMax H3」または必要なモデルだけを選び、100%まで待ちます。中断後は同じボタンで再開できます。
-9. 生成物をスマホへ保存し、Network Volumeを使わない場合は「Podを完全削除」で終了します。
+8. 「おすすめ：Krea2 Turbo + MiniMax H3」または必要なモデルだけを選び、100%まで待ちます。Xet高速転送中は大きい1ファイルの進捗が完了時にまとまって動く場合があります。中断後は同じボタンで再開できます。
+9. 生成物をスマホへ保存し、Network Volumeを使わない場合は「Podを完全削除」を押します。
+10. 最後にRunPodコンソールで対象Podが消えたことを確認します。これが課金停止の確定です。
 
-RunPod APIキーをUIへ入力する必要はありません。モデルはスマホではなくRunPodへ保存されます。
+モデル取得や生成のためにRunPod APIキーをUIへ入力する必要はありません。終了ボタンはPod環境のAPI資格情報で自動終了を試しますが、権限不足時はエラーとコンソール導線を表示します。モデルはスマホではなくRunPodへ保存されます。
 
 ## 容量の目安
 
@@ -27,7 +28,7 @@ RunPod APIキーをUIへ入力する必要はありません。モデルはス�
 ## 保存方式
 
 - Network Volumeあり: Pod削除後もモデル、LoRA、設定、生成物を保持できます。Volume料金は継続します。
-- Network Volumeなし: 一時ディスクはPod停止・削除時に消えます。Pod完全削除後は継続ストレージ料金を残しません。次回はモデルを再取得します。
+- Network Volumeなし: 一時ディスクはPod停止・削除時に消えます。Podの完全削除完了後は継続ストレージ料金が発生しません。次回はモデルを再取得します。
 
 重要な生成物は終了前に端末へ保存してください。料金と保存仕様はRunPod公式の最新情報を確認してください。
 
@@ -35,7 +36,7 @@ RunPod APIキーをUIへ入力する必要はありません。モデルはス�
 
 `runpod-template.json`は設定値の正本です。RunPodのCustom Templatesへ次を反映します。
 
-- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc4`
+- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc5`
 - Container disk: 150GB
 - Volume disk: 0GB（利用者の任意）
 - Volume mount: `/workspace`
@@ -52,6 +53,7 @@ Lite UIはComfyUIをローカル8188、Web UIを8080で起動します。モデ�
 | `ACS_IDLE_MINUTES` | `20` | ジョブがない状態で自動終了するまで |
 | `ACS_MAX_UPTIME_MINUTES` | `180` | ジョブ終了後に適用する最大稼働時間 |
 | `ACS_IDLE_ACTION` | `auto` | `auto` / `stop` / `terminate` |
+| `ACS_RUNPOD_API_KEY` | 未設定 | 任意。終了API専用のRunPod Secretを注入する場合だけ設定 |
 | `ACS_MAX_INPUT_IMAGE_BYTES` | `25MB` | H3フレーム画像1枚の上限 |
 | `ACS_MAX_LORA_BYTES` | `2GB` | LoRAアップロード上限 |
 
@@ -63,4 +65,4 @@ H3の許可リージョンはアプリ内で日本`AP-JP-1`へ固定していま
 - 容量不足: 一時ディスクまたはNetwork Volumeを150GB以上にします。
 - ComfyUI準備中: 数分待ってから再読込します。
 - H3メモリ不足: H200を選び、他ジョブがない状態で5秒動画から試します。
-- 停止に失敗: RunPodコンソールから手動でPodを停止・削除します。
+- 停止に失敗: 画面に成功を装わずエラーを表示します。RunPodコンソールから手動でPodを停止・削除します。

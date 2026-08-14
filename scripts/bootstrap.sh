@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 model_root="${ACS_MODEL_ROOT:-/workspace/models}"
 install_raw="${ACS_INSTALL_RAW:-1}"
-base_url="https://huggingface.co/Comfy-Org/Krea-2/resolve/main"
+project_dir="/opt/acs-imagegen-lite"
 
 mkdir -p \
   "$model_root/diffusion_models" \
@@ -28,7 +28,6 @@ download_model() {
   local relative_path="$1"
   local expected="$2"
   local target="$model_root/$relative_path"
-  local partial="$target.part"
 
   if verify_sha256 "$target" "$expected"; then
     echo "Verified: $relative_path"
@@ -39,13 +38,13 @@ download_model() {
   fi
 
   echo "Downloading: $relative_path"
-  curl --fail --location --retry 8 --retry-all-errors --continue-at - \
-    --output "$partial" "$base_url/$relative_path"
-  if ! verify_sha256 "$partial" "$expected"; then
+  HF_XET_HIGH_PERFORMANCE=1 HF_HUB_DISABLE_PROGRESS_BARS=1 \
+    python "$project_dir/scripts/hf_download_file.py" \
+      "Comfy-Org/Krea-2" "$relative_path" "$model_root"
+  if ! verify_sha256 "$target" "$expected"; then
     echo "SHA-256 verification failed: $relative_path" >&2
     return 1
   fi
-  mv "$partial" "$target"
 }
 
 download_model \

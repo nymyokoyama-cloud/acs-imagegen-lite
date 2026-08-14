@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
+import sys
 import threading
 import time
 import urllib.request
@@ -19,6 +21,7 @@ from .config import (
     MODEL_ROOT,
     MODEL_STATE_FILE,
     MODEL_VERIFIED_FILE,
+    PROJECT_DIR,
     VERSION,
     ensure_directories,
 )
@@ -28,6 +31,7 @@ STATE_LOCK = threading.Lock()
 CANCEL_EVENT = threading.Event()
 DOWNLOAD_THREAD: threading.Thread | None = None
 STATE_WRITE_INTERVAL = 0.5
+HF_DOWNLOAD_SCRIPT = PROJECT_DIR / "scripts" / "hf_download_file.py"
 
 
 def _default_state() -> dict[str, Any]:
@@ -225,6 +229,43 @@ def _download_stream(url: str, partial: Path, expected_size: int, progress) -> N
         raise RuntimeError(f"受信サイズが一致しません: {downloaded} / {expected_size}")
 
 
+def _download_huggingface(repo_id: str, relative_path: str, target: Path, expected_size: int, progress) -> None:
+    env = os.environ.copy()
+    env["HF_XET_HIGH_PERFORMANCE"] = "1"
+    env["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+    process = subprocess.Popen(
+        [sys.executable, str(HF_DOWNLOAD_SCRIPT), repo_id, relative_path, str(MODEL_ROOT)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    try:
+        while process.poll() is None:
+            if CANCEL_EVENT.wait(STATE_WRITE_INTERVAL):
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+                raise InterruptedError("取得を中断しました")
+            visible_size = min(target.stat().st_size, expected_size) if target.is_file() else 0
+            progress(visible_size)
+        stdout, stderr = process.communicate()
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+    if process.returncode != 0:
+        detail = (stderr or stdout or "unknown error").strip().splitlines()[-1][:300]
+        raise RuntimeError(f"Hugging Face高速取得に失敗しました: {detail}")
+    if not target.is_file() or target.stat().st_size != expected_size:
+        actual = target.stat().st_size if target.is_file() else 0
+        raise RuntimeError(f"受信サイズが一致しません: {actual} / {expected_size}")
+    progress(expected_size)
+
+
 def _prepare_file(file_key: str, completed_before: int, total_size: int, index: int, count: int) -> None:
     definition = MODEL_FILES[file_key]
     target = _target(file_key)
@@ -253,6 +294,7 @@ def _prepare_file(file_key: str, completed_before: int, total_size: int, index: 
 
     repository = str(definition.get("repository", MODEL_REPOSITORY)).rstrip("/")
     url = f"{repository}/{definition['relative_path']}"
+    accelerated = bool(definition.get("repo_id"))
 
     def progress(downloaded: int) -> None:
         total_downloaded = completed_before + downloaded
@@ -266,15 +308,31 @@ def _prepare_file(file_key: str, completed_before: int, total_size: int, index: 
             file_size=expected_size,
             total_downloaded=total_downloaded,
             percent=round(100 * total_downloaded / max(1, total_size), 2),
-            message=f"{target.name} を取得中",
+            message=(
+                f"{target.name} を高速取得中（ファイル内進捗は転送完了時に反映）"
+                if accelerated
+                else f"{target.name} を取得中"
+            ),
         )
 
-    _download_stream(url, partial, expected_size, progress)
+    if accelerated:
+        _download_huggingface(
+            str(definition["repo_id"]),
+            str(definition["relative_path"]),
+            target,
+            expected_size,
+            progress,
+        )
+        downloaded_path = target
+    else:
+        _download_stream(url, partial, expected_size, progress)
+        downloaded_path = partial
     _set_state(status="verifying", message=f"{target.name} の安全確認中")
-    if _sha256(partial, file_key, completed_before, total_size) != definition["sha256"]:
-        partial.rename(partial.with_suffix(partial.suffix + f".invalid.{int(time.time())}"))
+    if _sha256(downloaded_path, file_key, completed_before, total_size) != definition["sha256"]:
+        downloaded_path.rename(downloaded_path.with_suffix(downloaded_path.suffix + f".invalid.{int(time.time())}"))
         raise RuntimeError(f"SHA-256が一致しません: {target.name}")
-    os.replace(partial, target)
+    if downloaded_path != target:
+        os.replace(downloaded_path, target)
     _save_verified(file_key, target)
 
 

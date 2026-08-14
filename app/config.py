@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 APP_NAME = "ACS ImageGen Lite"
-VERSION = "0.3.0-rc4"
+VERSION = "0.3.0-rc5"
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = APP_DIR.parent
@@ -25,48 +25,57 @@ H3_SAFETY_LOG_FILE = DATA_DIR / "minimax_h3_safety_log.jsonl"
 LORA_DIR = MODEL_ROOT / "loras"
 MODEL_STATE_FILE = DATA_DIR / "model_download_state.json"
 MODEL_VERIFIED_FILE = DATA_DIR / "verified_models.json"
+POD_ACTION_STATE_FILE = DATA_DIR / "pod_action_state.json"
 
 MODEL_REPOSITORY = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main"
 MODEL_FILES = {
     "text_encoder": {
+        "repo_id": "Comfy-Org/Krea-2",
         "relative_path": "text_encoders/qwen3vl_4b_fp8_scaled.safetensors",
         "size": 5_242_467_968,
         "sha256": "54bd5144df0bbc25dd6ccadfcb826b521445a1b06ae5a42570bdd2974ca87094",
     },
     "vae": {
+        "repo_id": "Comfy-Org/Krea-2",
         "relative_path": "vae/qwen_image_vae.safetensors",
         "size": 253_806_246,
         "sha256": "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f",
     },
     "turbo": {
+        "repo_id": "Comfy-Org/Krea-2",
         "relative_path": "diffusion_models/krea2_turbo_fp8_scaled.safetensors",
         "size": 13_141_730_784,
         "sha256": "eb4dd8c612cfd10f64f25b057e6e6bbcb5737c94a7372177e456dbf7579502f1",
     },
     "raw": {
+        "repo_id": "Comfy-Org/Krea-2",
         "relative_path": "diffusion_models/krea2_raw_fp8_scaled.safetensors",
         "size": 13_141_730_784,
         "sha256": "48cd5d6c100297968349b41a8e77c6591d1dac18a215807f5f25f59e5c54cd61",
     },
     "h3_diffusion": {
+        "repo_id": "Comfy-Org/MiniMax-H3",
         "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
         "relative_path": "diffusion_models/minimax_h3_fl2va_pruned_fp8_scaled.safetensors",
         "size": 20_958_205_608,
         "sha256": "12944c1f7791637e7de12208aef04da82bd26b95271b1b47d817364315ade993",
     },
     "h3_text_encoder": {
+        "repo_id": "Comfy-Org/MiniMax-H3",
         "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
         "relative_path": "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
         "size": 27_141_342_152,
         "sha256": "bc2ced0fbea64757fa9acddccfc0b3f4819d1dcf1da6c124d690d368be283923",
     },
     "h3_video_vae": {
+        "repo_id": "Comfy-Org/MiniMax-H3",
         "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
         "relative_path": "vae/minimax_h3_video_vae_fp16.safetensors",
         "size": 5_207_808_496,
         "sha256": "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522",
     },
     "h3_audio_vae": {
+        "repo_id": "Comfy-Org/MiniMax-H3",
         "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
         "relative_path": "vae/minimax_h3_audio_vae_fp32.safetensors",
         "size": 605_254_808,

@@ -51,6 +51,7 @@ from .config import (
     MODEL_DEFINITIONS,
     OUTPUT_DIR,
     PASSWORD_FILE,
+    POD_ACTION_STATE_FILE,
     SESSION_KEY_FILE,
     SIZES,
     STYLES,
@@ -87,6 +88,7 @@ LOGIN_WINDOW_SECONDS = 5 * 60
 LOGIN_MAX_FAILURES = 8
 H3_ACCEPTANCE_LOCK = threading.Lock()
 H3_SAFETY_LOG_LOCK = threading.Lock()
+POD_ACTION_LOCK = threading.Lock()
 
 
 ensure_directories()
@@ -149,6 +151,31 @@ for _interrupted_job in _interrupted_jobs:
 
 def touch_activity() -> None:
     ACTIVITY_FILE.touch(exist_ok=True)
+
+
+def _pod_api_key() -> str:
+    return os.environ.get("ACS_RUNPOD_API_KEY", "") or os.environ.get("RUNPOD_API_KEY", "")
+
+
+def _read_pod_action_state() -> dict[str, Any]:
+    try:
+        value = json.loads(POD_ACTION_STATE_FILE.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def _write_pod_action_state(**values: Any) -> dict[str, Any]:
+    with POD_ACTION_LOCK:
+        state = _read_pod_action_state()
+        state.update(values)
+        temporary = POD_ACTION_STATE_FILE.with_name(
+            f".{POD_ACTION_STATE_FILE.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.chmod(temporary, 0o600)
+        temporary.replace(POD_ACTION_STATE_FILE)
+        return state
 
 
 def _password_record(password: str) -> dict[str, str | int]:
@@ -708,6 +735,7 @@ def api_config():
         "styles": [{"key": key, "label": value[0]} for key, value in STYLES.items()],
         "loras": list_loras(),
         "pod_default_action": "terminate",
+        "pod_api_ready": bool(os.environ.get("RUNPOD_POD_ID") and _pod_api_key()),
         "storage_mode": "network" if os.environ.get("RUNPOD_VOLUME_ID") else "temporary",
     }
 
@@ -1028,7 +1056,7 @@ async def api_upload_lora(file: UploadFile):
 
 def _pod_request(action: str) -> None:
     pod_id = os.environ.get("RUNPOD_POD_ID", "")
-    api_key = os.environ.get("RUNPOD_API_KEY", "")
+    api_key = _pod_api_key()
     if not pod_id or not api_key:
         raise RuntimeError("RunPodのPod内でのみ実行できます")
     if action == "stop":
@@ -1039,25 +1067,79 @@ def _pod_request(action: str) -> None:
         method = "DELETE"
     else:
         raise ValueError("invalid action")
-    request = urllib.request.Request(url, method=method, headers={"Authorization": f"Bearer {api_key}"})
-    with urllib.request.urlopen(request, timeout=30):
-        pass
+    request = urllib.request.Request(
+        url,
+        method=method,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        data=b"{}" if method == "POST" else None,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            status = int(getattr(response, "status", 200))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"RunPod API HTTP {exc.code}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError("RunPod APIへ接続できません") from exc
+    if not 200 <= status < 300:
+        raise RuntimeError(f"RunPod API HTTP {status}")
+
+
+@app.get("/api/pod/status")
+def api_pod_status():
+    state = _read_pod_action_state()
+    if not state:
+        return {
+            "status": "idle",
+            "message": "終了操作はまだ行われていません",
+            "console_url": "https://www.runpod.io/console/pods",
+        }
+    return {**state, "console_url": "https://www.runpod.io/console/pods"}
 
 
 @app.post("/api/pod/{action}")
 def api_pod_action(action: str):
     if action not in {"stop", "terminate"}:
         return JSONResponse({"error": "操作が不正です"}, status_code=400)
-    if not os.environ.get("RUNPOD_POD_ID") or not os.environ.get("RUNPOD_API_KEY"):
-        return JSONResponse({"error": "RunPodのPod内でのみ実行できます"}, status_code=400)
+    if not os.environ.get("RUNPOD_POD_ID") or not _pod_api_key():
+        return JSONResponse(
+            {"error": "自動終了用のRunPod APIキーがありません。RunPodコンソールから終了してください"},
+            status_code=409,
+        )
+    _write_pod_action_state(
+        status="pending",
+        action=action,
+        message="RunPodへ終了要求を送信します",
+        requested_at=time.time(),
+        finished_at=None,
+    )
+
     def delayed_action() -> None:
         time.sleep(1.5)
         try:
             _pod_request(action)
-        except Exception:
-            pass
+            _write_pod_action_state(
+                status="sent",
+                message="RunPod APIが終了要求を受理しました。コンソールで最終状態を確認してください",
+                finished_at=time.time(),
+            )
+        except Exception as exc:
+            _write_pod_action_state(
+                status="error",
+                message=f"自動終了に失敗しました（{str(exc)[:160]}）。RunPodコンソールから終了してください",
+                finished_at=time.time(),
+            )
+
     threading.Thread(target=delayed_action, daemon=True).start()
-    return {"ok": True, "action": action}
+    return JSONResponse(
+        {
+            "ok": True,
+            "status": "pending",
+            "action": action,
+            "message": "終了要求を受け付けました。まだ完了ではありません",
+            "console_url": "https://www.runpod.io/console/pods",
+        },
+        status_code=202,
+    )
 
 
 if not DISABLE_WORKER:

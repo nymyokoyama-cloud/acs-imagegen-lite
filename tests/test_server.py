@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from app import config
+from app import server
 from app.server import app, same_origin
 
 
@@ -210,3 +212,56 @@ def test_cross_origin_write_is_rejected() -> None:
         headers={"Origin": "https://example.invalid"},
     )
     assert response.status_code == 403
+
+
+def test_pod_request_uses_explicit_secret_and_checks_http_status(monkeypatch) -> None:
+    captured: dict[str, str] = {}
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    def fake_urlopen(request, timeout):
+        captured["authorization"] = request.headers["Authorization"]
+        captured["method"] = request.method
+        captured["timeout"] = str(timeout)
+        return Response()
+
+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-test")
+    monkeypatch.setenv("RUNPOD_API_KEY", "automatic-key")
+    monkeypatch.setenv("ACS_RUNPOD_API_KEY", "explicit-secret")
+    monkeypatch.setattr(server.urllib.request, "urlopen", fake_urlopen)
+    server._pod_request("terminate")
+    assert captured == {
+        "authorization": "Bearer explicit-secret",
+        "method": "DELETE",
+        "timeout": "30",
+    }
+
+
+def test_pod_action_failure_is_not_reported_as_success(monkeypatch) -> None:
+    config.POD_ACTION_STATE_FILE.unlink(missing_ok=True)
+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-test")
+    monkeypatch.setenv("ACS_RUNPOD_API_KEY", "explicit-secret")
+
+    def fail_request(_action: str) -> None:
+        raise RuntimeError("RunPod API HTTP 401")
+
+    monkeypatch.setattr(server, "_pod_request", fail_request)
+    response = server.api_pod_action("terminate")
+    assert response.status_code == 202
+    assert json.loads(response.body)["status"] == "pending"
+
+    deadline = time.time() + 3
+    state = server.api_pod_status()
+    while state.get("status") == "pending" and time.time() < deadline:
+        time.sleep(0.05)
+        state = server.api_pod_status()
+    assert state["status"] == "error"
+    assert "HTTP 401" in state["message"]
+    assert state["console_url"] == "https://www.runpod.io/console/pods"
