@@ -3,7 +3,10 @@ fastapi==0.141.1
 filelock==3.32.3
 huggingface_hub==1.8.0
 hf_xet==1.6.0
+msgpack==1.2.1
+Pillow==12.3.0
 python-dotenv==1.2.2
 python-multipart==0.0.32
+setuptools==84.0.0
 starlette==1.6.0
 uvicorn[standard]==0.52.3

@@ -1,6 +1,29 @@
-FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04@sha256:9175fa92f96de35a8cfb9493f0dfcf9435c7a597e9d95ad41d2cae382a95e3f9
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04@sha256:9175fa92f96de35a8cfb9493f0dfcf9435c7a597e9d95ad41d2cae382a95e3f9 AS builder
 
 ARG COMFYUI_COMMIT=7fe8a6138504f90ff7be82f3babf416da32876b1
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git python3 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/venv \
+    && python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && python -m pip install --no-cache-dir \
+        torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 \
+        --index-url https://download.pytorch.org/whl/cu128
+
+RUN git clone https://github.com/Comfy-Org/ComfyUI.git /opt/ComfyUI \
+    && git -C /opt/ComfyUI checkout "$COMFYUI_COMMIT"
+
+COPY requirements.txt /opt/acs-imagegen-lite/requirements.txt
+RUN python -m pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
+    && python -m pip install --no-cache-dir -r /opt/acs-imagegen-lite/requirements.txt
+
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04@sha256:9175fa92f96de35a8cfb9493f0dfcf9435c7a597e9d95ad41d2cae382a95e3f9 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -16,21 +39,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
-    && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg git python3 python3-venv \
+    && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg python3-minimal \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m venv /opt/venv \
-    && python -m pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && python -m pip install --no-cache-dir \
-        torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 \
-        --index-url https://download.pytorch.org/whl/cu128
-
-RUN git clone https://github.com/Comfy-Org/ComfyUI.git /opt/ComfyUI \
-    && git -C /opt/ComfyUI checkout "$COMFYUI_COMMIT"
-
-COPY requirements.txt /opt/acs-imagegen-lite/requirements.txt
-RUN python -m pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
-    && python -m pip install --no-cache-dir -r /opt/acs-imagegen-lite/requirements.txt
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /opt/ComfyUI /opt/ComfyUI
 
 COPY app /opt/acs-imagegen-lite/app
 COPY scripts /opt/acs-imagegen-lite/scripts

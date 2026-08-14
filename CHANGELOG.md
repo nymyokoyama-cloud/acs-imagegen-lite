@@ -6,7 +6,8 @@
 - 公式モデルのXet高速取得、中断再開、固定commitとSHA-256による完全性確認を実装
 - Krea 2とMiniMax H3のライセンス同意、地域・安全ゲート、AI生成識別を実装
 - Pod終了要求の状態表示とRunPodコンソールでの課金停止確認導線を追加
-- 不要なJupyter / File Browserを含まないNVIDIA公式CUDA基盤へ変更
+- 不要なJupyter / File Browserを含まないNVIDIA公式CUDA基盤へ変更し、build用環境を最終イメージから分離
+- Pillow、msgpack、setuptoolsを既知脆弱性の修正版へ固定
 - Python依存関係、静的解析、配布コンテナ、実GPU、配布購入導線を公開前検証
 
 ## 0.3.0-rc6 - 2026-08-14
