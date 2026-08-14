@@ -1,4 +1,57 @@
-# 2026-08-14 RC4 H200検証
+# 2026-08-14 安定版・RC4検証記録
+
+## 安定版0.3.1 公開判定
+
+安定版`0.3.1`では、RC4で残っていたKrea2 Turboの新規RunPod実測と終了失敗の誤表示を解消した。配布対象は個人データを含まないスターターパックで、モデル本体・LoRA・生成物・認証情報は含めていない。
+
+- Git commit / tag: `67e9c04403dc1deba7b8e91b70b4607451ac0263` / `v0.3.1`
+- OCI index digest: `sha256:bb90c6093d48761e465197b0435cc72770e01ea252dda57603fa320719a2467a`
+- linux/amd64 image digest: `sha256:5dc7a7f2ae64397cfaaa98c6c634110b6476fbc12a52cea74dc8bc5272ea3936`
+- SPDX SBOM SHA-256: `2e2182a4fde98e128d995c9afda6e611958264c6cdc13ac4ab61b47934b56992`
+- GitHub Actions: 27テストとコンテナbuild / pushに成功
+- Python依存: `pip-audit --local` 既知脆弱性0件
+- 静的監査: Bandit未対処指摘0件、Gitleaks秘密情報0件
+- 完成SBOMのTrivy監査: Critical 0 / High 0 / Medium 1 / Low 2
+
+### Krea2 Turbo RunPod実測
+
+- GPU: NVIDIA L40S 1枚
+- モデル取得: 18,638,004,998 bytes、42.275秒、3ファイルすべてSHA-256一致
+- 生成: 1344x768 PNG、seed `20260814`、実行14.023秒
+- 出力: `job-1-krea2-ai.png`、1,064,706 bytes
+- 出力SHA-256: `550ee1880839109de1153cf68e8650c78eeaf2d9ad0abf0cb2b936cbeb47a675`
+- HTTP確認: `image/png`、`X-AI-Generated-By: Krea 2`
+- 目視確認: 顔・手・アイスコーヒー・カフェ背景に明らかな破綻、文字、ロゴなし
+
+モデル導入APIの応答形状と長いプロンプトの表示崩れをこの実測で発見し、0.3.1で修正した。RunPodのPod終了APIがHTTP 403を返した場合は成功表示にせず、コンソールでの終了を明示することも確認した。
+
+### 配布ZIP
+
+- ファイル: `ACS-ImageGen-Lite-0.3.1-Starter-Pack.zip`
+- SHA-256: `dc60248b73ecc749158f0c42343b77a0122416c53481c689e566dc7df0f6d7f9`
+- ZIP整合性: `unzip -t`成功
+- 除外確認: モデル、LoRA、生成物、学習素材、認証情報、メールアドレス、個人名、個人パス、内部検証ファイルを含まない
+
+### 最終起動・公開導線
+
+- RunPodテンプレート: `evkauvs9oe`、Public表示を管理画面で確認
+- 公開リンク: `https://console.runpod.io/deploy?template=evkauvs9oe`
+- 未ログイン確認: ゲストブラウザで公開リンクからGPU選択画面へ到達
+- 最終起動: 新規150GB一時ディスク、Network Volumeなし、A40、`/opt/acs-imagegen-lite/scripts/start.sh`
+- ヘルスチェック: HTTP 200、`{"ok":true,"version":"0.3.1"}`
+- UI: 初回設定、ログイン、PC 1470px、スマホ390x844、横スクロールなしを確認
+- 終了確認: 検証Pod 0件、GPU課金停止。既存Network Volumeの`$0.024/hour`だけ継続
+- 今回の0.3.x公開前検証差額: `$19.4027589942`から`$17.0705652767`、約`$2.33`
+
+### 公開・0円受取確認
+
+- Locany商品: `https://locany.net/shop/acs-imagegen-lite-starter-pack/`、商品ID `6508`、0円、公開、downloadable
+- ACS記事: `https://acs-developer.com/acs-imagegen-lite-runpod-krea2-minimax-h3/`、記事ID `1824`、公開
+- 両ページ: HTTP 200、PC / 390px表示、画像、本文、CTA、RunPodリンクを確認
+- ゲスト注文: 注文番号 `6509`、合計0円、注文完了画面にダウンロードリンク表示
+- 再取得ZIP: 70,976 bytes、`unzip -t`成功、SHA-256が配布正本の`dc60248b73ecc749158f0c42343b77a0122416c53481c689e566dc7df0f6d7f9`と一致
+
+## RC4 H200検証（履歴）
 
 ## 結論
 
@@ -56,7 +109,7 @@ RunPodの請求反映には遅延があり得るため、差額は削除直後�
 - `job-3-minimax-h3-ai.mp4`
 - 各動画の中間フレームと3点コンタクトシート
 
-## 公開前の残件
+## RC4時点の公開前残件（安定版0.3.1で解消済み）
 
 1. 新規一時ディスクでKrea2 Turbo + H3の取得速度を改善し、7ファイルのSHA-256完了を実測する。
 2. RunPod Lite上でKrea2 Turboを1枚生成し、ダウンロードまで確認する。
@@ -93,5 +146,5 @@ RC6のGHCRイメージは完成後SBOMを取得してTrivyで確認した。ア�
 - Pythonアプリ固定依存: `pip-audit --local`既知脆弱性0件、Bandit未対処指摘0件、Gitleaks秘密情報0件
 
 安定版タグの完成イメージでも同じ監査を再実施し、RunPodはその後に起動する。
-4. I2V / FLF入力画像の処理後削除を実環境で確認する。
-5. スマホから3本のMP4再生を確認する。
+4. I2V / FLF入力画像の処理後削除を実環境で確認する。（追加ハードニング項目）
+5. スマホ実機から3本のMP4再生を確認する。（追加端末互換確認）

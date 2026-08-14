@@ -2,6 +2,10 @@
 
 RunPod上でKrea2画像生成とMiniMax H3動画生成を、スマホから扱いやすくする配布用Web UIです。個人用環境とは独立し、個人LoRA、生成履歴、学習素材、認証情報、モデル本体は含みません。
 
+- [無料スターターパックを入手](https://locany.net/shop/acs-imagegen-lite-starter-pack/)
+- [導入手順と実機検証を読む](https://acs-developer.com/acs-imagegen-lite-runpod-krea2-minimax-h3/)
+- [RunPod公開テンプレートを開く](https://console.runpod.io/deploy?template=evkauvs9oe)
+
 ## 主な機能
 
 - Krea2 Turbo / RawのText to Image、任意LoRA
