@@ -78,6 +78,8 @@ RC5でHugging Face Xet高速取得とPod終了結果APIを実装したが、Krea
 - `bandit -q -r app scripts -x tests`: 未対処指摘0件
 - 固定commitからのHugging Face小ファイル実取得: 成功
 
-RC6はGHCR完成イメージのコンテナスキャン、新規RunPod一時ディスクでのKrea2 Turbo取得・1枚生成・課金停止確認を残す。ここまでは公開完成扱いにしない。
+RC6のGHCRイメージは完成後SBOMを取得してTrivyで確認した。アプリの固定Python依存関係には既知脆弱性がなかった一方、従来の`runpod/pytorch`基盤にLite版で使わないJupyter / File Browser等の重大指摘が残っていた。このためRC6は不採用とし、NVIDIA公式CUDA runtimeをdigest固定した最小基盤、専用Python仮想環境、PyTorch 2.8 / CUDA 12.8公式wheelへ切り替えた。
+
+安定版は、新基盤の完成コンテナSBOM、新規RunPod一時ディスクでのKrea2 Turbo取得・1枚生成・課金停止確認を残す。ここまでは公開完成扱いにしない。
 4. I2V / FLF入力画像の処理後削除を実環境で確認する。
 5. スマホから3本のMP4再生を確認する。

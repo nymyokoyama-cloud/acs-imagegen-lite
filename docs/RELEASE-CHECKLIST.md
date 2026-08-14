@@ -22,7 +22,8 @@
 - [x] RC2イメージをGHCRへpush
 - [x] RC3イメージをbuild・GHCRへpush
 - [x] RC4イメージをbuild・GHCRへpush
-- [ ] RC6完成コンテナを脆弱性スキャン
+- [x] RC6完成コンテナSBOMを脆弱性スキャンし、旧基盤の重大指摘により不採用
+- [ ] NVIDIA公式CUDA最小基盤の安定版完成コンテナを脆弱性スキャン
 - [x] `runpod-template.json`のイメージ名をRC6へ更新
 - [x] RunPod非公開テンプレート作成
 - [ ] RunPod公開テンプレート作成（法務・H200実測後）
