@@ -12,8 +12,8 @@ Krea 2には独自ライセンスが適用されます。利用者はモデル�
 
 ## ComfyUI
 
-- ソース: https://github.com/comfyanonymous/ComfyUI
-- Docker buildで固定するcommit: `f435bc94f3c165d98d5e36cdcd14de728220ab7c`
+- ソース: https://github.com/Comfy-Org/ComfyUI
+- Docker buildで固定するcommit: `7fe8a6138504f90ff7be82f3babf416da32876b1`
 - ライセンス: ComfyUI公式リポジトリのLICENSEを参照
 
 Dockerイメージを配布するときは、そのイメージ内に含まれるComfyUIと依存パッケージのライセンス表示・ソース提供条件を満たしてください。

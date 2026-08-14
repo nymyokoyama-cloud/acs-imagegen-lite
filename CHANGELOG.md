@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0-rc2 - 2026-08-14
+
+- GHCR実buildで判明した未公開のローカルComfyUI commit参照を修正
+- ComfyUI公式リポジトリの公開commit `7fe8a6138504f90ff7be82f3babf416da32876b1`へ固定
+
 ## 0.3.0-rc1 - 2026-08-14
 
 - MiniMax H3のText to Video / Image to Video / First-Last-Frame to Videoを追加

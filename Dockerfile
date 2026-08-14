@@ -1,6 +1,6 @@
 FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
-ARG COMFYUI_COMMIT=f435bc94f3c165d98d5e36cdcd14de728220ab7c
+ARG COMFYUI_COMMIT=7fe8a6138504f90ff7be82f3babf416da32876b1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -14,7 +14,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI \
+RUN git clone https://github.com/Comfy-Org/ComfyUI.git /opt/ComfyUI \
     && git -C /opt/ComfyUI checkout "$COMFYUI_COMMIT"
 
 COPY requirements.txt /opt/acs-imagegen-lite/requirements.txt

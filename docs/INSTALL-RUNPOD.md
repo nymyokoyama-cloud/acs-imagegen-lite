@@ -35,7 +35,7 @@ RunPod APIキーをUIへ入力する必要はありません。モデルはス�
 
 `runpod-template.json`は設定値の正本です。RunPodのCustom Templatesへ次を反映します。
 
-- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc1`
+- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc2`
 - Container disk: 150GB
 - Volume disk: 0GB（利用者の任意）
 - Volume mount: `/workspace`

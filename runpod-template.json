@@ -1,6 +1,6 @@
 {
-  "name": "ACS ImageGen Lite 0.3.0-rc1 - Krea2 + MiniMax H3",
-  "imageName": "ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc1",
+  "name": "ACS ImageGen Lite 0.3.0-rc2 - Krea2 + MiniMax H3",
+  "imageName": "ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc2",
   "containerDiskInGb": 150,
   "volumeInGb": 0,
   "volumeMountPath": "/workspace",
