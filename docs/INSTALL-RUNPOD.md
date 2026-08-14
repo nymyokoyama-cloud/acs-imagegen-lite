@@ -1,67 +1,66 @@
 # RunPod導入手順
 
-## 一般利用者向け（公開テンプレート完成後）
+## 一般利用者向け
 
 1. ACS Developerの配布ページから0円スターターパックを入手します。
-2. パックに記載された「RunPodで起動」を開きます。
-3. 24GB以上のVRAMを持つGPUを選びます。24GBは推奨の目安で、構成や空き状況によって結果は変わります。
-4. 保存方式を選びます。継続保存したい人だけ50GB以上のNetwork Volumeを`/workspace`へ接続します。毎回取得でよければ接続不要です。
-5. Deployを実行します。
-6. PodのConnect画面からHTTP Port 8080を開きます。
-7. 10文字以上のパスワードを設定し、ログインします。
-8. 画面上部の「Turboを入れる」または「Turbo＋Rawをまとめて準備」を押し、進捗が100%になるまで待ちます。中断後は同じボタンで再開できます。
-9. 画像生成後は「Podを完全削除」を実行します。Network Volume接続時はモデルだけ保持されます。
+2. パック内の「RunPodで起動」を開きます。
+3. H3を使う場合は日本リージョン`AP-JP-1`のH200を選びます。Krea2だけなら24GB以上のGPUが目安です。
+4. 一時ディスクは150GBにします。継続保存したい人だけ150GB以上のNetwork Volumeを`/workspace`へ接続します。
+5. Deploy後、Connect画面からHTTP Port 8080を開きます。
+6. 10文字以上のパスワードを設定してログインします。
+7. H3を使う場合は画面の利用条件3項目を確認します。
+8. 「おすすめ：Krea2 Turbo + MiniMax H3」または必要なモデルだけを選び、100%まで待ちます。中断後は同じボタンで再開できます。
+9. 生成物をスマホへ保存し、Network Volumeを使わない場合は「Podを完全削除」で終了します。
 
-RunPodのAPIキーを画面へ入力する必要はありません。Pod内で提供されるPod IDとPodスコープのAPIキーを停止処理に使用します。
+RunPod APIキーをUIへ入力する必要はありません。モデルはスマホではなくRunPodへ保存されます。
 
-## データ保持の違い
+## 容量の目安
 
-- Network Volumeあり: Podを完全削除しても、Volume側のモデル、LoRA、設定、画像を保持できます。Volume料金は別途継続します。
-- Network Volumeなし: Pod稼働中は一時ディスクも従量課金です。Pod完全削除でモデル、LoRA、設定、画像が消え、以後のストレージ料金を残しません。次回はUIから再取得します。
+- Krea2 Turbo: 約18.6GB
+- Krea2 Turbo + Raw: 約31.8GB
+- MiniMax H3: 約53.9GB
+- おすすめ（Turbo + H3）: 約72.6GB
+- すべて（Turbo + Raw + H3）: 約85.7GB
 
-重要な画像は終了前に端末へ保存してください。
+環境、ComfyUI、作業領域、生成物の余裕を含め、一時ディスク150GBを既定にしています。
+
+## 保存方式
+
+- Network Volumeあり: Pod削除後もモデル、LoRA、設定、生成物を保持できます。Volume料金は継続します。
+- Network Volumeなし: 一時ディスクはPod停止・削除時に消えます。Pod完全削除後は継続ストレージ料金を残しません。次回はモデルを再取得します。
+
+重要な生成物は終了前に端末へ保存してください。料金と保存仕様はRunPod公式の最新情報を確認してください。
 
 ## テンプレート作成者向け
 
-`runpod-template.json`は設定値の正本であり、現時点ではそのままRunPod APIへ投入することを保証するファイルではありません。RunPodコンソールのCustom Templatesで次を設定します。
+`runpod-template.json`は設定値の正本です。RunPodのCustom Templatesへ次を反映します。
 
-- Container image: 公開レジストリへpushしたイメージ
-- Container disk: 70GB
-- Volume disk: 0GB
-- Volume mount path: `/workspace`
-- Expose HTTP port: `8080`
-- Environment variables: `runpod-template.json`の`env`
+- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc1`
+- Container disk: 150GB
+- Volume disk: 0GB（利用者の任意）
+- Volume mount: `/workspace`
+- HTTP port: `8080`
+- H3を案内するGPU: 日本リージョンのH200
 
-モデルをTurboのみにする場合は`ACS_INSTALL_RAW=0`にします。この場合のモデル取得量は約18.6GBです。
-
-## 初回起動で行うこと
-
-起動スクリプトは次を自動実行します。
-
-1. ComfyUIをローカルポート8188で起動
-2. Lite UIをポート8080で起動
-3. アイドル監視を開始
-4. 利用者がUIで選んだ時だけ、公式`Comfy-Org/Krea-2`から再開可能な形でモデルを取得
-5. SHA-256照合後に生成モデルを有効化
-
-モデルファイルはDockerイメージや配布ZIPに含めません。
+Lite UIはComfyUIをローカル8188、Web UIを8080で起動します。モデルはDockerイメージや配布ZIPに含めません。
 
 ## 環境変数
 
 | 変数 | 既定値 | 内容 |
 |---|---:|---|
-| `ACS_AUTO_INSTALL_MODELS` | `none` | `none`ならUI選択。管理者用に`turbo` / `all` |
+| `ACS_AUTO_INSTALL_MODELS` | `none` | UI選択。管理者向けKrea2のみ`turbo` / `all` |
+| `ACS_H3_ALLOWED_DC_PREFIXES` | `AP-JP-1` | 法務確認済みH3リージョンの接頭辞 |
+| `ACS_H3_ALLOW_UNVERIFIED_REGION` | `0` | 開発テスト専用。一般配布では変更しない |
 | `ACS_IDLE_MINUTES` | `20` | ジョブがない状態で自動終了するまで |
 | `ACS_MAX_UPTIME_MINUTES` | `180` | ジョブ終了後に適用する最大稼働時間 |
 | `ACS_IDLE_ACTION` | `auto` | `auto` / `stop` / `terminate` |
-| `ACS_WEB_PASSWORD` | 未設定 | 設定時は初回画面を省略。10文字以上 |
-| `ACS_MAX_LORA_BYTES` | 2GB | LoRAアップロード上限 |
-
-`auto`は継続課金の見落としを避けるため`terminate`を選びます。Network VolumeはPodから独立して保持されます。
+| `ACS_MAX_INPUT_IMAGE_BYTES` | `25MB` | H3フレーム画像1枚の上限 |
+| `ACS_MAX_LORA_BYTES` | `2GB` | LoRAアップロード上限 |
 
 ## トラブル時
 
-- 8080が開かない: Container Logsでモデル取得中か確認します。
-- モデル未導入と表示: 起動スクリプトのSHA-256エラーを確認します。
-- GPUメモリ不足: 解像度を下げる構成へ変更するか、VRAMの多いGPUを選びます。
-- 停止ボタンが失敗: RunPodコンソールから手動停止し、PodスコープAPIキーの提供状態を確認します。
+- H3を有効にできない: RunPodのデータセンターが日本`AP-JP-1`か確認します。
+- 容量不足: 一時ディスクまたはNetwork Volumeを150GB以上にします。
+- ComfyUI準備中: 数分待ってから再読込します。
+- H3メモリ不足: H200を選び、他ジョブがない状態で5秒動画から試します。
+- 停止に失敗: RunPodコンソールから手動でPodを停止・削除します。

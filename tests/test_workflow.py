@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.workflow import build_workflow, compose_prompt
+from app.workflow import build_h3_workflow, build_workflow, compose_prompt, h3_frames
 
 
 def test_compose_prompt_orders_trigger_prompt_and_style() -> None:
@@ -42,3 +42,36 @@ def test_empty_prompt_is_rejected() -> None:
     with pytest.raises(ValueError, match="prompt is empty"):
         build_workflow("krea2_turbo", "", "", 1024, 1024, 1)
 
+
+def test_h3_frame_grid_matches_24fps_17k_plus_5() -> None:
+    assert h3_frames(5) == 124
+    assert h3_frames(10) == 243
+
+
+def test_h3_supports_text_image_and_first_last_modes() -> None:
+    text_graph = build_h3_workflow("t2v", "a calm ocean", 864, 480, 5, 1)
+    assert text_graph["104"]["class_type"] == "MiniMaxH3ImageToVideo"
+    assert "first_frame" not in text_graph["104"]["inputs"]
+    assert text_graph["17"]["inputs"]["sampler_name"] == "res_multistep"
+    assert text_graph["9"]["inputs"]["steps"] == 20
+    assert text_graph["91"]["inputs"]["fps"] == 24
+
+    image_graph = build_h3_workflow(
+        "i2v", "the person smiles", 480, 864, 5, 2, first_frame="first.png"
+    )
+    assert image_graph["104"]["inputs"]["first_frame"] == ["121", 0]
+    assert "last_frame" not in image_graph["104"]["inputs"]
+
+    frame_graph = build_h3_workflow(
+        "flf", "walk from the first scene to the last", 672, 672, 5, 3,
+        first_frame="first.png", last_frame="last.webp",
+    )
+    assert frame_graph["104"]["inputs"]["first_frame"] == ["121", 0]
+    assert frame_graph["104"]["inputs"]["last_frame"] == ["122", 0]
+
+
+def test_h3_required_frames_are_enforced() -> None:
+    with pytest.raises(ValueError, match="first frame"):
+        build_h3_workflow("i2v", "move", 864, 480, 5, 1)
+    with pytest.raises(ValueError, match="first and last"):
+        build_h3_workflow("flf", "move", 864, 480, 5, 1, first_frame="a.png")

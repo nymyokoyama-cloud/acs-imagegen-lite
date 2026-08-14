@@ -1,75 +1,141 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ACS ImageGen Lite</title>
-  <style>
-    :root{--bg:#06101d;--panel:#0d1a2a;--panel2:#122238;--line:#263d59;--text:#eef6ff;--muted:#a9bdd3;--blue:#5ba8ff;--blue2:#2877d2;--green:#4dd69c;--yellow:#ffc76d;--red:#ff7f88}
-    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#15365b 0,transparent 34rem),var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif;line-height:1.55}
-    .wrap{width:min(980px,calc(100% - 28px));margin:0 auto;padding:28px 0 70px}.top{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;margin-bottom:22px}.brand h1{font-size:clamp(26px,5vw,40px);margin:0}.brand p{margin:4px 0 0;color:var(--muted)}.badge{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:#0a1727;color:var(--muted);font-size:13px}.dot{width:9px;height:9px;border-radius:50%;background:var(--yellow)}.dot.ok{background:var(--green)}
-    .notice{padding:14px 16px;border:1px solid #6a5328;border-radius:12px;background:#2a2112;color:#ffe2a7;margin-bottom:18px}.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px}.card{background:linear-gradient(145deg,rgba(255,255,255,.025),transparent),var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 20px 55px rgba(0,0,0,.22)}h2{font-size:20px;margin:0 0 16px}label{display:block;color:var(--muted);font-size:13px;font-weight:700;margin:13px 0 6px}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;background:#07111f;color:var(--text);padding:11px 12px}textarea{min-height:130px;resize:vertical}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.btn{border:0;border-radius:11px;padding:12px 16px;font-weight:850;cursor:pointer}.btn:disabled{opacity:.45;cursor:not-allowed}.primary{width:100%;margin-top:18px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#06101d}.secondary{background:#172a42;color:var(--text);border:1px solid var(--line)}.danger{background:#49202a;color:#ffd9dd;border:1px solid #7a3441}.quiet{color:var(--muted);font-size:13px}.rows{display:flex;flex-direction:column;gap:9px}.job{padding:12px;border-radius:11px;background:#081421;border:1px solid #1b314a}.job-head{display:flex;justify-content:space-between;gap:10px}.status{font-size:12px;font-weight:850;padding:2px 7px;border-radius:999px;background:#263750}.status.done{background:#164c3b;color:#a9f5d1}.status.running{background:#5c4618;color:#ffe2a7}.status.error,.status.canceled{background:#55242d;color:#ffc2c7}.prompt{margin-top:7px;color:#c7d6e6;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:18px}.gallery a{display:block;border-radius:13px;overflow:hidden;border:1px solid var(--line);background:#040a12}.gallery img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover}.actions{display:grid;gap:9px}.actions .btn{width:100%}details{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}summary{cursor:pointer;font-weight:800}.lora-upload{margin-top:12px}.error{color:#ffadb4}.success{color:#9ef0ca}.model-note{margin-top:8px;color:var(--yellow);font-size:12px}
-    .model-manager{margin-bottom:18px}.model-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.model-head h2{margin-bottom:4px}.model-list{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}.model-row{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:13px;background:#081421}.model-row strong{display:block}.model-row .btn{min-width:118px}.model-status{display:block;font-size:12px;font-weight:800;color:var(--yellow)}.model-status.ready{color:var(--green)}.model-actions{display:flex;gap:10px;align-items:center;margin-top:13px}.model-actions .btn{flex:1}.progress-wrap{margin-top:15px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#07111f}.progress-track{height:13px;border-radius:99px;background:#172a42;overflow:hidden}.progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--blue2),var(--green));transition:width .3s}.progress-line{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px}.storage-note{margin:8px 0 0;color:#8fc7ff;font-size:13px}
-    dialog{border:1px solid var(--line);border-radius:14px;background:#07111f;padding:12px;max-width:min(1000px,95vw)}dialog img{display:block;max-width:90vw;max-height:82vh}dialog::backdrop{background:rgba(0,0,0,.8)}
-    @media(max-width:780px){.grid{grid-template-columns:1fr}.top,.model-head{flex-direction:column}.two,.three,.model-list{grid-template-columns:1fr}.model-row{align-items:flex-start}.model-row .btn{min-width:105px}.model-actions{flex-direction:column}.model-actions .btn{width:100%}.wrap{width:min(100% - 18px,700px);padding-top:15px}.card{padding:16px}}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ACS ImageGen Lite</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--card:#101e31;--line:#29415f;--text:#edf5ff;--muted:#a9bed8;--blue:#55a6ff;--green:#62d89c;--red:#ff9a9a;--amber:#ffc766}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#173257 0,var(--bg) 42%);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;overflow-wrap:anywhere}button,input,select,textarea{font:inherit}button{cursor:pointer}.wrap{width:min(1120px,100%);margin:auto;padding:18px}.hero{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 2px}.hero h1{margin:0;font-size:clamp(25px,5vw,42px);line-height:1.08}.hero p{margin:8px 0 0;color:var(--muted)}.engine{white-space:nowrap;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#0a1728;color:var(--muted);font-size:13px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#718096;margin-right:7px}.dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{min-width:0;background:color-mix(in srgb,var(--card) 96%,transparent);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 16px 42px #0004}.wide{grid-column:1/-1}.card h2{margin:0 0 7px;font-size:21px}.card h3{margin:18px 0 8px}.quiet,.hint{color:var(--muted);font-size:13px;line-height:1.6}.success{color:var(--green)}.error{color:var(--red)}.warning{color:var(--amber)}label{display:block;color:#dceaff;font-size:14px;margin-top:13px}input,select,textarea{width:100%;min-width:0;margin-top:6px;padding:12px;background:#081524;color:var(--text);border:1px solid #355474;border-radius:10px}textarea{min-height:112px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.btn{border:0;border-radius:11px;padding:12px 16px;background:var(--blue);color:#06101d;font-weight:800}.btn.secondary{background:#1d3551;color:var(--text);border:1px solid #45698f}.btn.danger{background:#5f2730;color:#ffdfe3;border:1px solid #99505c}.btn:disabled{opacity:.45;cursor:not-allowed}.full{width:100%;margin-top:15px}.package-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.package{padding:13px;border:1px solid #294967;border-radius:12px;background:#0a1728}.package strong{display:block}.package .btn{width:100%;margin-top:10px;padding:9px}.badge{display:inline-block;margin-top:7px;padding:3px 8px;border-radius:99px;font-size:11px;background:#1a3854;color:#cfe7ff}.badge.done{background:#143e31;color:#a7f2cf}.progress{height:11px;margin:12px 0 6px;border-radius:99px;background:#06101d;overflow:hidden}.progress span{display:block;height:100%;background:linear-gradient(90deg,#3489e8,#62d89c)}.terms{border-color:#8d6a2a;background:linear-gradient(135deg,#1c2030,#282116)}.terms-list{display:grid;gap:9px;margin:14px 0}.check{display:flex;align-items:flex-start;gap:9px;margin:0;color:var(--text);font-size:13px}.check input{width:auto;margin:3px 0 0;flex:0 0 auto}.mode-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:13px 0}.mode-tabs button{padding:10px 6px;border:1px solid #355474;border-radius:10px;background:#091827;color:var(--muted)}.mode-tabs button.active{background:#1d4f80;color:#fff;border-color:#69b6ff}.media-input{padding:12px;border:1px dashed #507394;border-radius:12px;margin-top:10px}.hidden{display:none!important}.jobs{display:grid;gap:9px}.job{padding:11px;border:1px solid #294967;border-radius:11px;background:#091726}.job-head{display:flex;justify-content:space-between;gap:8px;font-size:13px}.prompt{margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#dceaff}.status{color:var(--muted)}.status.done{color:var(--green)}.status.error,.status.canceled{color:var(--red)}.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.gallery a{display:block;min-width:0;color:var(--text);text-decoration:none}.gallery img,.gallery video{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#050b13;border:1px solid #294967;border-radius:11px}.gallery small{display:block;margin-top:4px;color:var(--muted)}details{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-weight:700}.actions{display:flex;gap:10px;flex-wrap:wrap}.storage{padding:12px;border-radius:11px;background:#0a1728;border:1px solid #294967;margin-top:10px}dialog{max-width:min(92vw,1000px);border:1px solid var(--line);border-radius:14px;background:#081524;padding:10px}dialog img{display:block;max-width:100%;max-height:80vh}dialog button{margin-top:8px}
+@media(max-width:780px){.wrap{padding:12px}.hero{display:block}.engine{display:inline-block;margin-top:12px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.package-grid,.gallery{grid-template-columns:1fr 1fr}.card{padding:16px}.row{grid-template-columns:1fr}.mode-tabs{grid-template-columns:1fr}.mode-tabs button{text-align:left}.actions .btn{flex:1 1 145px}}
+@media(max-width:430px){.package-grid,.gallery{grid-template-columns:1fr}.wrap{padding:9px}.card{border-radius:15px;padding:14px}.hero{padding:14px 3px}.hero h1{font-size:28px}}
+</style>
 </head>
 <body>
 <main class="wrap">
-  <div class="top"><div class="brand"><h1>ACS ImageGen Lite</h1><p>RunPod上でKrea2画像生成を簡単に使うための無料UI</p></div><div class="badge"><span id="dot" class="dot"></span><span id="engine">確認中</span></div></div>
-  <div class="notice">RunPodは起動中に料金が発生します。画像を保存したら、右側の「GPUを停止」または「Podを完全削除」を必ず実行してください。</div>
-  <section class="card model-manager">
-    <div class="model-head"><div><h2>1. モデルを準備</h2><p class="quiet" style="margin:0">初回だけ必要です。まずTurboを入れると、軽く試せます。</p><p class="storage-note">保存先はRunPodの /workspace です。スマホやパソコン本体には保存しません。</p></div><div id="free-space" class="badge">空き容量を確認中</div></div>
-    <div id="storage-mode" class="notice" style="margin:14px 0 0"></div>
-    <div id="model-list" class="model-list"></div>
-    <div class="model-actions"><button id="install-all" class="btn secondary" type="button">Turbo＋Rawをまとめて準備</button></div>
-    <div id="model-progress" class="progress-wrap" hidden><div class="progress-line"><strong id="progress-message">準備中</strong><span id="progress-percent">0%</span></div><div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div><p id="progress-detail" class="quiet"></p><button id="cancel-download" class="btn danger" type="button">いったん中断</button></div>
-    <p id="model-message" class="quiet"></p>
-  </section>
+  <header class="hero">
+    <div><h1>ACS ImageGen Lite</h1><p>Krea2画像生成 ＋ <strong>MiniMax H3</strong>動画生成</p></div>
+    <div class="engine"><span id="dot" class="dot"></span><span id="engine">接続確認中</span></div>
+  </header>
+
   <div class="grid">
-    <section class="card">
-      <h2>画像を生成</h2>
-      <form id="generate-form">
-        <label for="model">モデル</label><select id="model" name="model_key"></select><div id="model-note" class="model-note"></div>
-        <label for="prompt">プロンプト</label><textarea id="prompt" name="prompt" maxlength="4000" placeholder="例: An adult person drinking iced coffee at a modern cafe, natural daylight" required></textarea>
-        <label for="negative">ネガティブプロンプト</label><textarea id="negative" name="negative" placeholder="Rawで使用できます。Turboでは自動的に無効になります"></textarea>
-        <div class="three"><div><label for="ratio">比率</label><select id="ratio" name="ratio"></select></div><div><label for="style">スタイル</label><select id="style" name="style_key"></select></div><div><label for="seed">Seed</label><input id="seed" name="seed" inputmode="numeric" placeholder="空欄でランダム"></div></div>
-        <div class="two"><div><label for="lora">任意LoRA</label><select id="lora" name="lora_name"><option value="">使用しない</option></select></div><div><label for="strength">LoRA強度</label><input id="strength" name="lora_strength" type="number" min="0" max="2" step="0.05" value="1.00"></div></div>
-        <label for="trigger">LoRAトリガーワード</label><input id="trigger" name="trigger_word" maxlength="200" placeholder="LoRAの説明に書かれた語句">
-        <button id="generate" class="btn primary" type="submit">キューへ追加</button><p id="form-message" class="quiet"></p>
-      </form>
-      <details><summary>自分のLoRAを追加</summary><div class="lora-upload"><p class="quiet">配布元の利用条件を確認した、ご自身で使用権を持つ.safetensorsだけをアップロードしてください。</p><input id="lora-file" type="file" accept=".safetensors"><button id="upload-lora" class="btn secondary" type="button">LoRAをアップロード</button><p id="upload-message" class="quiet"></p></div></details>
+    <section class="card wide">
+      <h2>1. 使うモデルを準備</h2>
+      <p class="quiet">モデルはRunPod側へ保存されます。おすすめ構成はKrea2 Turbo＋MiniMax H3です。</p>
+      <div id="packages" class="package-grid"></div>
+      <div class="progress"><span id="model-progress" style="width:0%"></span></div>
+      <p id="model-message" class="quiet">状態を確認しています</p>
+      <p id="model-capacity" class="quiet"></p>
+      <button id="cancel-download" class="btn secondary" type="button" disabled>モデル取得を中断</button>
     </section>
-    <aside class="card"><h2>RunPod操作</h2><div class="actions"><button id="stop" class="btn secondary">GPUを停止</button><button id="terminate" class="btn danger">Podを完全削除</button></div><p id="pod-hint" class="quiet"></p><hr style="border:0;border-top:1px solid var(--line);margin:20px 0"><h2>直近ジョブ</h2><div id="jobs" class="rows"><p class="quiet">まだありません</p></div></aside>
+
+    <section id="h3-terms" class="card terms wide">
+      <h2>MiniMax H3 利用前の確認</h2>
+      <p><strong>MiniMax H3</strong> is licensed under the MiniMax H3 Community License Agreement, Copyright © 2026 MiniMax. All Rights Reserved.</p>
+      <p id="h3-region" class="quiet"></p>
+      <div id="h3-accepted" class="success hidden">確認済みです。H3の取得と動画生成を利用できます。</div>
+      <form id="h3-accept-form">
+        <div class="terms-list">
+          <label class="check"><input type="checkbox" name="territory_confirm" value="yes" required><span>現在の利用地域とRunPodリージョンがライセンスのApplicable Territory内であることを確認しました。</span></label>
+          <label class="check"><input type="checkbox" name="license_confirm" value="yes" required><span><a href="https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE" target="_blank" rel="noopener">MiniMax H3 Community License</a>と利用制限を読み、同意します。</span></label>
+          <label class="check"><input type="checkbox" name="disclosure_confirm" value="yes" required><span>公開物はAI生成と明示し、他のAIモデルの学習・改善には使用しません。</span></label>
+        </div>
+        <button id="h3-accept" class="btn" type="submit">確認してH3を有効化</button>
+      </form>
+      <p class="hint">既定では日本のRunPodリージョンのみ有効です。EU・英国・韓国・米国はライセンス上の対象外です。</p>
+    </section>
+
+    <section class="card">
+      <h2>2A. Krea2で画像生成</h2>
+      <form id="image-form">
+        <label>モデル<select id="model" name="model_key"></select></label>
+        <label>プロンプト<textarea name="prompt" required placeholder="例：夕方のカフェでアイスコーヒーを飲む人物、自然な光"></textarea></label>
+        <label id="negative-wrap">ネガティブ<textarea name="negative" placeholder="不要な要素"></textarea></label>
+        <div class="row">
+          <label>比率<select id="ratio" name="ratio"></select></label>
+          <label>スタイル<select id="style" name="style_key"></select></label>
+        </div>
+        <div class="row">
+          <label>Seed<input name="seed" inputmode="numeric" placeholder="空欄でランダム"></label>
+          <label>LoRA<select id="lora" name="lora_name"><option value="">使用しない</option></select></label>
+        </div>
+        <div class="row">
+          <label>LoRA強度<input name="lora_strength" type="number" value="1" min="0" max="2" step="0.05"></label>
+          <label>トリガーワード<input name="trigger_word" maxlength="200"></label>
+        </div>
+        <button id="image-submit" class="btn full" type="submit">画像生成をキューへ追加</button>
+        <p id="image-message" class="quiet"></p>
+      </form>
+      <details><summary>自分のLoRAを追加</summary><label>.safetensors<input id="lora-file" type="file" accept=".safetensors"></label><button id="upload-lora" class="btn secondary full" type="button">アップロード</button><p id="upload-message" class="quiet"></p></details>
+    </section>
+
+    <section class="card">
+      <h2>2B. MiniMax H3で動画生成</h2>
+      <div class="mode-tabs" role="group" aria-label="動画生成モード">
+        <button type="button" data-mode="t2v" class="active">Text to Video</button>
+        <button type="button" data-mode="i2v">Image to Video</button>
+        <button type="button" data-mode="flf">First / Last Frame</button>
+      </div>
+      <form id="video-form">
+        <input id="video-mode" type="hidden" name="mode" value="t2v">
+        <label>動画プロンプト<textarea name="prompt" required placeholder="被写体、動き、カメラ、音の順に書くと整理しやすいです"></textarea></label>
+        <div id="first-frame-wrap" class="media-input hidden"><label>開始フレーム（PNG / JPEG / WebP）<input id="first-frame" name="first_frame" type="file" accept="image/png,image/jpeg,image/webp"></label></div>
+        <div id="last-frame-wrap" class="media-input hidden"><label>終了フレーム（First / Lastのみ）<input id="last-frame" name="last_frame" type="file" accept="image/png,image/jpeg,image/webp"></label></div>
+        <div class="row">
+          <label>比率<select id="h3-ratio" name="ratio"></select></label>
+          <label>長さ（3〜10秒）<input name="duration" type="number" value="5" min="3" max="10" step="1"></label>
+        </div>
+        <label>Seed<input name="seed" inputmode="numeric" placeholder="空欄でランダム"></label>
+        <button id="video-submit" class="btn full" type="submit">動画生成をキューへ追加</button>
+        <p id="video-message" class="quiet"></p>
+        <p class="hint">音声も同時生成します。動画は画像より時間とGPU料金がかかります。まず5秒での確認がおすすめです。</p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>生成キュー</h2><div id="jobs" class="jobs"><p class="quiet">まだありません</p></div>
+    </section>
+    <section class="card">
+      <h2>完成ファイル</h2><div id="gallery" class="gallery"><p class="quiet">生成後に表示されます</p></div>
+    </section>
+
+    <section class="card wide">
+      <h2>保存方式と終了</h2>
+      <div id="storage" class="storage quiet"></div>
+      <div class="actions" style="margin-top:12px"><button id="stop" class="btn secondary" type="button">GPUを停止</button><button id="terminate" class="btn danger" type="button">Podを完全削除</button></div>
+      <p class="hint">重要な画像・動画は終了前に端末へ保存してください。実際の停止状態はRunPodコンソールでも確認してください。</p>
+    </section>
   </div>
-  <section class="card" style="margin-top:18px"><h2>完成画像</h2><div id="gallery" class="gallery"><p class="quiet">生成後にここへ表示されます</p></div></section>
 </main>
-<dialog id="viewer"><img id="viewer-img" alt="生成画像"><form method="dialog"><button class="btn secondary" style="width:100%;margin-top:10px">閉じる</button></form></dialog>
+<dialog id="viewer"><img id="viewer-img" alt="生成画像"><button class="btn secondary" onclick="this.parentElement.close()">閉じる</button></dialog>
 <script>
-const state={config:null,models:null,comfy:false,lastModelStatus:null};
-const $=id=>document.getElementById(id);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-async function jsonFetch(url,options={}){const r=await fetch(url,{cache:'no-store',...options});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
-function setOptions(select,items,empty){const previous=select.value;select.innerHTML=empty?`<option value="">${esc(empty)}</option>`:'';for(const item of items){const option=document.createElement('option');option.value=item.key??item.name;option.textContent=item.label??item.name;if(item.available===false)option.disabled=true;select.appendChild(option)}if([...select.options].some(x=>x.value===previous&&!x.disabled))select.value=previous}
-function formatBytes(n){if(!Number.isFinite(n))return'-';const units=['B','KB','MB','GB','TB'];let v=n,i=0;while(v>=1000&&i<units.length-1){v/=1000;i++}return`${v.toFixed(i<3?0:1)} ${units[i]}`}
-async function loadConfig(){state.config=await jsonFetch('/api/config');setOptions($('model'),state.config.models);setOptions($('ratio'),state.config.ratios.map(x=>({key:x,label:x})));setOptions($('style'),state.config.styles);setOptions($('lora'),state.config.loras,'使用しない');const network=state.config.storage_mode==='network';$('storage-mode').innerHTML=network?'<strong>継続保存モード</strong><br>Network Volumeへ保存します。Podを削除しても残りますが、Volume料金は継続します。':'<strong>都度利用モード</strong><br>Pod稼働中は一時ディスクも従量課金です。Podを完全削除するとモデルも消え、以後のストレージ料金は残りません。';$('pod-hint').textContent=network?'「Podを完全削除」でGPU料金を止めても、Network Volumeのモデルは保持されます。':'料金を残さないため、生成後は「Podを完全削除」をおすすめします。次回はモデルを再取得します。';updateModelNote()}
-function updateGenerateState(){const m=state.config?.models.find(x=>x.key===$('model').value);$('generate').disabled=!state.comfy||!m?.available}
-function updateModelNote(){const m=state.config?.models.find(x=>x.key===$('model').value);if(!m){$('negative').disabled=true;$('model-note').textContent='上の「モデルを準備」からTurboまたはRawを入れてください';updateGenerateState();return}$('negative').disabled=!m.negative;$('model-note').textContent=m.available?(m.negative?'ネガティブプロンプト対応':'Turboではネガティブプロンプトを使用しません'):'このモデルはまだ準備されていません';updateGenerateState()}
-function renderModelManager(data){state.models=data;$('free-space').textContent=`RunPod空き ${formatBytes(data.free_bytes)}`;const active=['starting','downloading','verifying'].includes(data.state.status);const packages=data.packages.filter(x=>['turbo','raw'].includes(x.key));$('model-list').innerHTML='';for(const p of packages){const row=document.createElement('div');row.className='model-row';const status=p.verified?'準備完了':p.installed?'安全確認待ち':p.partial_size?'途中から再開できます':'未導入';const action=p.verified?'準備済み':p.installed?'安全確認する':p.partial_size?'続きから再開':`${p.label}を入れる`;row.innerHTML=`<div><strong>${esc(p.label)}</strong><span class="model-status ${p.verified?'ready':''}">${esc(status)}</span><div class="quiet">${esc(p.description)}・合計 ${formatBytes(p.size)}</div></div><button class="btn secondary install-model" data-package="${esc(p.key)}" ${p.verified||active||data.download_disabled?'disabled':''}>${esc(action)}</button>`;$('model-list').appendChild(row)}const all=data.packages.find(x=>x.key==='all');$('install-all').disabled=active||all?.verified||data.download_disabled;const show=active||['complete','error','canceled','interrupted'].includes(data.state.status);$('model-progress').hidden=!show;if(show){const percent=Math.max(0,Math.min(100,Number(data.state.percent)||0));$('progress-bar').style.width=`${percent}%`;$('progress-percent').textContent=`${percent.toFixed(1)}%`;$('progress-message').textContent=data.state.message||'準備中';$('progress-detail').textContent=data.state.filename?`${data.state.file_index}/${data.state.file_count} ${data.state.filename}・${formatBytes(data.state.total_downloaded)} / ${formatBytes(data.state.total_size)}`:(data.state.error||'');$('cancel-download').hidden=!active;$('progress-message').className=data.state.status==='error'?'error':data.state.status==='complete'?'success':''}document.querySelectorAll('.install-model').forEach(b=>b.onclick=()=>installModels(b.dataset.package));if(state.lastModelStatus!==data.state.status&&data.state.status==='complete')loadConfig();state.lastModelStatus=data.state.status}
-async function loadModels(){try{renderModelManager(await jsonFetch('/api/models'))}catch(e){$('model-message').className='error';$('model-message').textContent=e.message}}
-async function installModels(packageKey){$('model-message').className='quiet';$('model-message').textContent='準備を開始しています';try{renderModelManager(await jsonFetch(`/api/models/install/${packageKey}`,{method:'POST'}));$('model-message').textContent='画面を閉じずにお待ちください。中断しても再開できます。'}catch(e){$('model-message').className='error';$('model-message').textContent=e.message}}
+const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const state={config:null,models:null,h3:null,comfy:false};
+async function jsonFetch(url,opt={}){const r=await fetch(url,opt);let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
+const gb=n=>(Number(n)/1e9).toFixed(1)+'GB';
+function setOptions(el,items,valueKey='key',labelKey='label'){el.innerHTML='';for(const item of items){const o=document.createElement('option');o.value=item[valueKey];o.textContent=item[labelKey];el.appendChild(o)}}
+async function loadConfig(){state.config=await jsonFetch('/api/config');setOptions($('model'),state.config.models);setOptions($('ratio'),state.config.ratios.map(x=>({key:x,label:x})));setOptions($('h3-ratio'),state.config.h3_ratios.map(x=>({key:x,label:x})));setOptions($('style'),state.config.styles);$('lora').innerHTML='<option value="">使用しない</option>'+state.config.loras.map(x=>`<option value="${esc(x.name)}">${esc(x.name)} (${gb(x.size)})</option>`).join('');$('storage').textContent=state.config.storage_mode==='network'?'Network Volume接続中：Pod削除後もモデル等を保持します。Volume料金は継続します。':'一時ディスク：Pod完全削除でモデル等も消え、継続ストレージ料金を残しません。';updateModelNote()}
+function renderH3(h){state.h3=h;const allowed=h.region.allowed;$('h3-region').className=allowed?'success':'error';$('h3-region').textContent=h.region.reason;$('h3-accepted').classList.toggle('hidden',!h.accepted);$('h3-accept-form').classList.toggle('hidden',h.accepted);$('h3-accept').disabled=!allowed;updateGenerateState()}
+function renderModelManager(m){state.models=m;renderH3(m.h3);$('packages').innerHTML='';for(const p of m.packages){const div=document.createElement('div');div.className='package';const blocked=p.requires_h3_terms&&(!m.h3.accepted||!m.h3.region.allowed);div.innerHTML=`<strong>${esc(p.label)}</strong><span class="badge ${p.verified?'done':''}">${p.verified?'準備済み':gb(p.size)}</span><p class="quiet">${esc(p.description)}</p><button class="btn ${p.key==='recommended'?'':'secondary'}" data-package="${esc(p.key)}" ${p.verified||blocked||m.download_disabled?'disabled':''}>${p.verified?'準備済み':'この構成を入れる'}</button>`;$('packages').appendChild(div)}document.querySelectorAll('[data-package]').forEach(b=>b.onclick=()=>installModels(b.dataset.package));const s=m.state,p=Number(s.percent||0);$('model-progress').style.width=Math.max(0,Math.min(100,p))+'%';$('model-message').textContent=s.error?`${s.message}: ${s.error}`:s.message;$('model-message').className=s.error?'error':'quiet';$('model-capacity').textContent=`空き容量 ${gb(m.free_bytes)}${s.total_size?` / 選択セット ${gb(s.total_size)}`:''}`;$('cancel-download').disabled=!['starting','downloading','verifying'].includes(s.status);updateGenerateState()}
+async function installModels(key){try{renderModelManager(await jsonFetch(`/api/models/install/${key}`,{method:'POST'}))}catch(e){$('model-message').className='error';$('model-message').textContent=e.message}}
+function updateModelNote(){const item=state.config?.models.find(x=>x.key===$('model').value);$('negative-wrap').classList.toggle('hidden',!item?.negative)}
+function updateGenerateState(){const selected=state.config?.models.find(x=>x.key===$('model').value);$('image-submit').disabled=!(state.comfy&&selected?.available);$('video-submit').disabled=!(state.comfy&&state.h3?.available&&state.h3?.accepted&&state.h3?.region?.allowed)}
+function setVideoMode(mode){$('video-mode').value=mode;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));$('first-frame-wrap').classList.toggle('hidden',mode==='t2v');$('last-frame-wrap').classList.toggle('hidden',mode!=='flf');$('first-frame').required=mode!=='t2v';$('last-frame').required=mode==='flf'}
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>setVideoMode(b.dataset.mode));
 function statusLabel(s){return({queued:'待機',running:'生成中',done:'完了',error:'エラー',canceled:'停止'}[s]||s)}
-function renderJobs(jobs){$('jobs').innerHTML=jobs.length?'':'<p class="quiet">まだありません</p>';for(const j of jobs.slice(0,8)){const div=document.createElement('div');div.className='job';div.innerHTML=`<div class="job-head"><span>#${j.id}</span><span class="status ${esc(j.status)}">${esc(statusLabel(j.status))}</span></div><div class="prompt">${esc(j.prompt)}</div>${j.error?`<div class="error quiet">${esc(j.error)}</div>`:''}${['queued','running'].includes(j.status)?`<button class="btn secondary cancel" data-id="${j.id}" style="margin-top:8px;padding:6px 10px">停止</button>`:''}`;$('jobs').appendChild(div)}document.querySelectorAll('.cancel').forEach(b=>b.onclick=async()=>{try{await jsonFetch(`/api/jobs/${b.dataset.id}/cancel`,{method:'POST'});await poll()}catch(e){alert(e.message)}})}
-function renderGallery(jobs){const done=jobs.filter(j=>j.status==='done'&&j.output_name);$('gallery').innerHTML=done.length?'':'<p class="quiet">生成後にここへ表示されます</p>';for(const j of done){const url=`/api/images/${encodeURIComponent(j.output_name)}`;const a=document.createElement('a');a.href=url;a.innerHTML=`<img src="${url}" alt="生成画像 ${j.id}" loading="lazy">`;a.onclick=e=>{e.preventDefault();$('viewer-img').src=url;$('viewer').showModal()};$('gallery').appendChild(a)}}
-async function poll(){try{const [d,m]=await Promise.all([jsonFetch('/api/status'),jsonFetch('/api/models')]);state.comfy=d.comfy;$('dot').classList.toggle('ok',d.comfy);$('engine').textContent=d.comfy?`生成エンジン稼働・待機${d.pending}`:'生成エンジン準備中';renderModelManager(m);updateGenerateState();renderJobs(d.jobs);renderGallery(d.jobs)}catch(e){$('engine').textContent='接続エラー'}}
-$('model').onchange=updateModelNote;
-$('install-all').onclick=()=>installModels('all');
+function modeLabel(j){if(j.job_kind!=='video')return 'Krea2画像';return({t2v:'Text to Video',i2v:'Image to Video',flf:'First / Last Frame'}[j.video_mode]||'H3動画')}
+function renderJobs(jobs){$('jobs').innerHTML=jobs.length?'':'<p class="quiet">まだありません</p>';for(const j of jobs.slice(0,10)){const div=document.createElement('div');div.className='job';div.innerHTML=`<div class="job-head"><span>#${j.id} ${esc(modeLabel(j))}</span><span class="status ${esc(j.status)}">${esc(statusLabel(j.status))}</span></div><div class="prompt">${esc(j.prompt)}</div>${j.error?`<div class="error quiet">${esc(j.error)}</div>`:''}${['queued','running'].includes(j.status)?`<button class="btn secondary cancel" data-id="${j.id}" style="margin-top:8px;padding:6px 10px">停止</button>`:''}`;$('jobs').appendChild(div)}document.querySelectorAll('.cancel').forEach(b=>b.onclick=async()=>{try{await jsonFetch(`/api/jobs/${b.dataset.id}/cancel`,{method:'POST'});await poll()}catch(e){alert(e.message)}})}
+function renderGallery(jobs){const done=jobs.filter(j=>j.status==='done'&&j.output_name);$('gallery').innerHTML=done.length?'':'<p class="quiet">生成後に表示されます</p>';for(const j of done){const url=`/api/outputs/${encodeURIComponent(j.output_name)}`,a=document.createElement('a');a.href=url;a.download=j.output_name;const video=/\.(mp4|webm)$/i.test(j.output_name);if(video){a.innerHTML=`<video src="${url}" controls preload="metadata"></video><small>#${j.id} H3動画・タップで保存</small>`}else{a.innerHTML=`<img src="${url}" alt="生成画像 ${j.id}" loading="lazy"><small>#${j.id} 画像・タップで保存</small>`;a.onclick=e=>{if(e.altKey||e.metaKey)return;e.preventDefault();$('viewer-img').src=url;$('viewer').showModal()}}$('gallery').appendChild(a)}}
+async function poll(){try{const [d,m]=await Promise.all([jsonFetch('/api/status'),jsonFetch('/api/models')]);state.comfy=d.comfy;$('dot').classList.toggle('ok',d.comfy);$('engine').textContent=d.comfy?`生成エンジン稼働・待機${d.pending}`:'生成エンジン準備中';renderModelManager(m);if(state.config){state.config.h3_available=m.h3.available;state.config.models.forEach(x=>x.available=m.files.some(f=>f.installed&&((x.key==='krea2_turbo'&&f.filename.includes('krea2_turbo'))||(x.key==='krea2_raw'&&f.filename.includes('krea2_raw')))));}renderJobs(d.jobs);renderGallery(d.jobs)}catch(e){$('engine').textContent='接続エラー'}}
+$('model').onchange=()=>{updateModelNote();updateGenerateState()};
 $('cancel-download').onclick=async()=>{try{renderModelManager(await jsonFetch('/api/models/cancel',{method:'POST'}))}catch(e){$('model-message').className='error';$('model-message').textContent=e.message}};
-$('generate-form').onsubmit=async e=>{e.preventDefault();$('form-message').className='quiet';$('form-message').textContent='送信中';try{const d=await jsonFetch('/api/generate',{method:'POST',body:new FormData(e.target)});$('form-message').className='success';$('form-message').textContent=`ジョブ #${d.job_id} を追加しました Seed ${d.seed}`;await poll()}catch(err){$('form-message').className='error';$('form-message').textContent=err.message}};
+$('h3-accept-form').onsubmit=async e=>{e.preventDefault();try{renderH3(await jsonFetch('/api/h3/accept',{method:'POST',body:new FormData(e.target)}));await poll()}catch(err){$('h3-region').className='error';$('h3-region').textContent=err.message}};
+$('image-form').onsubmit=async e=>{e.preventDefault();$('image-message').textContent='送信中';try{const d=await jsonFetch('/api/generate',{method:'POST',body:new FormData(e.target)});$('image-message').className='success';$('image-message').textContent=`ジョブ #${d.job_id} を追加しました・Seed ${d.seed}`;await poll()}catch(err){$('image-message').className='error';$('image-message').textContent=err.message}};
+$('video-form').onsubmit=async e=>{e.preventDefault();$('video-message').textContent='送信中';try{const d=await jsonFetch('/api/video/generate',{method:'POST',body:new FormData(e.target)});$('video-message').className='success';$('video-message').textContent=`動画ジョブ #${d.job_id} を追加しました・Seed ${d.seed}`;await poll()}catch(err){$('video-message').className='error';$('video-message').textContent=err.message}};
 $('upload-lora').onclick=async()=>{const file=$('lora-file').files[0];if(!file){$('upload-message').textContent='ファイルを選択してください';return}const body=new FormData();body.append('file',file);$('upload-message').textContent='アップロード中';try{await jsonFetch('/api/loras',{method:'POST',body});$('upload-message').className='success';$('upload-message').textContent='追加しました';await loadConfig()}catch(e){$('upload-message').className='error';$('upload-message').textContent=e.message}};
-async function podAction(action){const text=action==='stop'?'GPUを停止しますか？ 初期設定の一時ディスクは停止時に消えます。永続Volumeを使う場合はストレージ料金が継続します。':'Podを完全削除しますか？ Network Volume未使用時はモデル、LoRA、履歴も削除されます。';if(!confirm(text))return;try{await jsonFetch(`/api/pod/${action}`,{method:'POST'});document.body.innerHTML='<main class="wrap"><section class="card"><h1>RunPodを終了しています</h1><p>RunPodコンソールで停止状態を確認してください。</p></section></main>'}catch(e){alert(e.message)}}
+async function podAction(action){const msg=action==='stop'?'GPUを停止しますか？ 一時ディスクは停止時に消える場合があります。':'Podを完全削除しますか？ Network Volume未使用時はモデル、LoRA、生成物も削除されます。';if(!confirm(msg))return;try{await jsonFetch(`/api/pod/${action}`,{method:'POST'});document.body.innerHTML='<main class="wrap"><section class="card"><h1>RunPodを終了しています</h1><p>RunPodコンソールで停止状態を確認してください。</p></section></main>'}catch(e){alert(e.message)}}
 $('stop').onclick=()=>podAction('stop');$('terminate').onclick=()=>podAction('terminate');
-(async()=>{try{await loadConfig();await loadModels();await poll();setInterval(poll,2000)}catch(e){$('engine').textContent=e.message}})();
+(async()=>{try{await loadConfig();await poll();setInterval(poll,2000)}catch(e){$('engine').textContent=e.message}})();
 </script>
 </body>
 </html>

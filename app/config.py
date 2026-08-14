@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 APP_NAME = "ACS ImageGen Lite"
-VERSION = "0.2.0-rc1"
+VERSION = "0.3.0-rc1"
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = APP_DIR.parent
@@ -15,9 +15,11 @@ COMFY_URL = os.environ.get("ACS_COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
 
 DB_PATH = DATA_DIR / "jobs.db"
 OUTPUT_DIR = DATA_DIR / "outputs"
+COMFY_INPUT_DIR = Path(os.environ.get("ACS_COMFY_INPUT_DIR", "/workspace/comfy-input"))
 PASSWORD_FILE = DATA_DIR / ".password"
 SESSION_KEY_FILE = DATA_DIR / ".session_key"
 ACTIVITY_FILE = DATA_DIR / "last_activity"
+H3_ACCEPTANCE_FILE = DATA_DIR / "minimax_h3_acceptance.json"
 LORA_DIR = MODEL_ROOT / "loras"
 MODEL_STATE_FILE = DATA_DIR / "model_download_state.json"
 MODEL_VERIFIED_FILE = DATA_DIR / "verified_models.json"
@@ -44,7 +46,33 @@ MODEL_FILES = {
         "size": 13_141_730_784,
         "sha256": "48cd5d6c100297968349b41a8e77c6591d1dac18a215807f5f25f59e5c54cd61",
     },
+    "h3_diffusion": {
+        "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
+        "relative_path": "diffusion_models/minimax_h3_fl2va_pruned_fp8_scaled.safetensors",
+        "size": 20_958_205_608,
+        "sha256": "12944c1f7791637e7de12208aef04da82bd26b95271b1b47d817364315ade993",
+    },
+    "h3_text_encoder": {
+        "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
+        "relative_path": "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+        "size": 27_141_342_152,
+        "sha256": "bc2ced0fbea64757fa9acddccfc0b3f4819d1dcf1da6c124d690d368be283923",
+    },
+    "h3_video_vae": {
+        "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
+        "relative_path": "vae/minimax_h3_video_vae_fp16.safetensors",
+        "size": 5_207_808_496,
+        "sha256": "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522",
+    },
+    "h3_audio_vae": {
+        "repository": "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main",
+        "relative_path": "vae/minimax_h3_audio_vae_fp32.safetensors",
+        "size": 605_254_808,
+        "sha256": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+    },
 }
+
+H3_FILE_KEYS = ("h3_diffusion", "h3_text_encoder", "h3_video_vae", "h3_audio_vae")
 
 MODEL_PACKAGES = {
     "turbo": {
@@ -61,6 +89,24 @@ MODEL_PACKAGES = {
         "label": "Turbo + Raw",
         "description": "2モデルをまとめて準備",
         "file_keys": ("text_encoder", "vae", "turbo", "raw"),
+    },
+    "h3": {
+        "label": "MiniMax H3 動画",
+        "description": "Text / Image / First-Last Frame動画。約53.9GB",
+        "file_keys": H3_FILE_KEYS,
+        "requires_h3_terms": True,
+    },
+    "recommended": {
+        "label": "おすすめ：Krea2 Turbo + MiniMax H3",
+        "description": "画像と3種類の動画をまとめて準備。約72.6GB",
+        "file_keys": ("text_encoder", "vae", "turbo", *H3_FILE_KEYS),
+        "requires_h3_terms": True,
+    },
+    "everything": {
+        "label": "すべて：Krea2 Turbo + Raw + MiniMax H3",
+        "description": "画像2モデルと動画をすべて準備。約85.7GB",
+        "file_keys": ("text_encoder", "vae", "turbo", "raw", *H3_FILE_KEYS),
+        "requires_h3_terms": True,
     },
 }
 
@@ -83,6 +129,21 @@ MODEL_DEFINITIONS = {
 
 TEXT_ENCODER = "qwen3vl_4b_fp8_scaled.safetensors"
 VAE = "qwen_image_vae.safetensors"
+
+H3_MODEL_KEY = "minimax_h3"
+H3_LICENSE_VERSION = "2026-08-02"
+H3_LICENSE_URL = "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE"
+H3_ALLOWED_DC_PREFIXES = tuple(
+    value.strip()
+    for value in os.environ.get("ACS_H3_ALLOWED_DC_PREFIXES", "AP-JP-1").split(",")
+    if value.strip()
+)
+H3_ALLOW_UNVERIFIED_REGION = os.environ.get("ACS_H3_ALLOW_UNVERIFIED_REGION", "0") == "1"
+H3_SIZES = {
+    "16:9": (864, 480),
+    "9:16": (480, 864),
+    "1:1": (672, 672),
+}
 
 SIZES = {
     "16:9": (1344, 768),
@@ -110,6 +171,7 @@ STYLES = {
 
 MAX_PROMPT_LENGTH = int(os.environ.get("ACS_MAX_PROMPT_LENGTH", "4000"))
 MAX_LORA_BYTES = int(os.environ.get("ACS_MAX_LORA_BYTES", str(2 * 1024**3)))
+MAX_INPUT_IMAGE_BYTES = int(os.environ.get("ACS_MAX_INPUT_IMAGE_BYTES", str(25 * 1024**2)))
 JOB_TIMEOUT_SEC = int(os.environ.get("ACS_JOB_TIMEOUT_SEC", "3600"))
 COOKIE_SECURE = os.environ.get("ACS_COOKIE_SECURE", "1") != "0"
 DISABLE_WORKER = os.environ.get("ACS_LITE_DISABLE_WORKER", "0") == "1"
@@ -117,7 +179,7 @@ DISABLE_MODEL_DOWNLOAD = os.environ.get("ACS_LITE_DISABLE_MODEL_DOWNLOAD", "0") 
 
 
 def ensure_directories() -> None:
-    for path in (DATA_DIR, OUTPUT_DIR, MODEL_ROOT / "diffusion_models", MODEL_ROOT / "text_encoders", MODEL_ROOT / "vae", LORA_DIR):
+    for path in (DATA_DIR, OUTPUT_DIR, COMFY_INPUT_DIR, MODEL_ROOT / "diffusion_models", MODEL_ROOT / "text_encoders", MODEL_ROOT / "vae", LORA_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 
@@ -135,3 +197,23 @@ def model_available(model_key: str) -> bool:
         MODEL_ROOT / "vae" / VAE,
     )
     return all(path.is_file() for path in required)
+
+
+def h3_available() -> bool:
+    return all((MODEL_ROOT / str(MODEL_FILES[key]["relative_path"])).is_file() for key in H3_FILE_KEYS)
+
+
+def h3_region_status() -> dict[str, object]:
+    dc_id = os.environ.get("RUNPOD_DC_ID", "").strip()
+    allowed = H3_ALLOW_UNVERIFIED_REGION or bool(
+        dc_id and any(dc_id.startswith(prefix) for prefix in H3_ALLOWED_DC_PREFIXES)
+    )
+    if H3_ALLOW_UNVERIFIED_REGION:
+        reason = "開発者の明示設定により地域確認を省略しています"
+    elif allowed:
+        reason = f"RunPodリージョン {dc_id} はこの配布設定の許可対象です"
+    elif dc_id:
+        reason = f"RunPodリージョン {dc_id} ではH3を有効化できません"
+    else:
+        reason = "RunPodリージョンを確認できないためH3を有効化できません"
+    return {"allowed": allowed, "dc_id": dc_id or None, "reason": reason}

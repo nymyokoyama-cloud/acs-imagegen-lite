@@ -4,6 +4,7 @@ set -Eeuo pipefail
 project_dir="/opt/acs-imagegen-lite"
 model_root="${ACS_MODEL_ROOT:-/workspace/models}"
 comfy_output="${ACS_COMFY_OUTPUT_DIR:-/workspace/comfy-output}"
+comfy_input="${ACS_COMFY_INPUT_DIR:-/workspace/comfy-input}"
 
 auto_install="${ACS_AUTO_INSTALL_MODELS:-none}"
 if [[ "$auto_install" == "all" ]]; then
@@ -13,13 +14,13 @@ elif [[ "$auto_install" == "turbo" ]]; then
 else
   echo "Model installation will be handled from the Lite UI."
 fi
-mkdir -p "$comfy_output" /workspace/comfy-input
+mkdir -p "$comfy_output" "$comfy_input"
 
 python /opt/ComfyUI/main.py \
   --listen 127.0.0.1 \
   --port 8188 \
   --output-directory "$comfy_output" \
-  --input-directory /workspace/comfy-input \
+  --input-directory "$comfy_input" \
   --extra-model-paths-config <(printf 'acs_imagegen_lite:\n  base_path: %s\n  diffusion_models: diffusion_models\n  text_encoders: text_encoders\n  vae: vae\n  loras: loras\n' "$model_root") &
 comfy_pid=$!
 

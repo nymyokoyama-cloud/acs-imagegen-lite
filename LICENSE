@@ -8,11 +8,11 @@ Copyright (c) 2026 ACS Developer. All rights reserved.
 Subject to this License, ACS Developer grants each recipient a non-exclusive,
 worldwide, royalty-free license to:
 
-- install and use ACS ImageGen Lite for personal or commercial image-production
-  work; and
+- install and use ACS ImageGen Lite for personal or commercial image- and
+  video-production work; and
 - modify the software solely for the recipient's own internal use.
 
-Images generated with the software are not claimed by this software license.
+Images and videos generated with the software are not claimed by this software license.
 Their use remains subject to the licenses and terms of the models, LoRAs,
 inputs, services, and other materials used to create them.
 
@@ -63,7 +63,7 @@ https://acs-developer.com/
 
 日本語要約（理解補助。英語本文と矛盾する場合は英語本文を優先）
 
-- 個人・商用の画像制作に無料で利用できます。
+- 個人・商用の画像・動画制作に無料で利用できます。
 - 自分の内部利用に限り改変できます。
 - 本ソフトや改変版の再配布、再販売、有料ホスティング、ミラー配布は
   ACS Developerの書面許可なしに行えません。

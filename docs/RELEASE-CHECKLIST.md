@@ -4,6 +4,8 @@
 
 - [x] ACS独自利用許諾を決定し、LICENSEを追加
 - [ ] Krea2 LICENSE.pdfを確認し、第三者案内を最終レビュー
+- [x] H3ライセンス通知、地域ゲート、利用者確認、NOTICEを実装
+- [ ] H3 Community Licenseと配布地域を法務最終レビュー
 - [ ] LoRAと生成物の権利注意を商品ページへ掲載
 
 ## イメージとRunPod
@@ -26,6 +28,12 @@
 - [ ] GPU停止
 - [ ] Network Volume接続時のPod完全削除と再起動
 - [ ] アイドル自動終了
+- [ ] H200 / AP-JP-1でH3モデル4件のSHA-256成功
+- [ ] H3 Text to Video 5秒・音声付き
+- [ ] H3 Image to Video 5秒・入力画像削除
+- [ ] H3 First / Last Frame 5秒・入力画像削除
+- [ ] H3出力のMP4保存とスマホ再生
+- [ ] 非許可リージョンでH3取得・生成が拒否される
 
 ## 配布導線
 

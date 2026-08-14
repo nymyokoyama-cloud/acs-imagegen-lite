@@ -19,6 +19,7 @@ from .config import (
     MODEL_ROOT,
     MODEL_STATE_FILE,
     MODEL_VERIFIED_FILE,
+    VERSION,
     ensure_directories,
 )
 
@@ -136,6 +137,7 @@ def public_status() -> dict[str, Any]:
                 "installed": all(item["installed"] for item in selected),
                 "verified": all(item["verified"] for item in selected),
                 "partial_size": sum(item["partial_size"] for item in selected),
+                "requires_h3_terms": bool(definition.get("requires_h3_terms", False)),
             }
         )
     with STATE_LOCK:
@@ -195,7 +197,7 @@ def _download_stream(url: str, partial: Path, expected_size: int, progress) -> N
     if existing > expected_size:
         partial.rename(partial.with_suffix(partial.suffix + f".invalid.{int(time.time())}"))
         existing = 0
-    request = urllib.request.Request(url, headers={"User-Agent": "ACS-ImageGen-Lite/0.2"})
+    request = urllib.request.Request(url, headers={"User-Agent": f"ACS-ImageGen-Lite/{VERSION}"})
     if existing:
         request.add_header("Range", f"bytes={existing}-")
     response = urllib.request.urlopen(request, timeout=60)
@@ -203,7 +205,7 @@ def _download_stream(url: str, partial: Path, expected_size: int, progress) -> N
     if existing and status != 206:
         response.close()
         existing = 0
-        request = urllib.request.Request(url, headers={"User-Agent": "ACS-ImageGen-Lite/0.2"})
+        request = urllib.request.Request(url, headers={"User-Agent": f"ACS-ImageGen-Lite/{VERSION}"})
         response = urllib.request.urlopen(request, timeout=60)
     mode = "ab" if existing else "wb"
     downloaded = existing
@@ -249,7 +251,8 @@ def _prepare_file(file_key: str, completed_before: int, total_size: int, index: 
                 return
         target.rename(target.with_suffix(target.suffix + f".invalid.{int(time.time())}"))
 
-    url = f"{MODEL_REPOSITORY}/{definition['relative_path']}"
+    repository = str(definition.get("repository", MODEL_REPOSITORY)).rstrip("/")
+    url = f"{repository}/{definition['relative_path']}"
 
     def progress(downloaded: int) -> None:
         total_downloaded = completed_before + downloaded
@@ -334,7 +337,9 @@ def start_install(package_key: str) -> dict[str, Any]:
         partial_size = min(partial.stat().st_size, expected) if partial.is_file() else 0
         needed += expected - partial_size
     if shutil.disk_usage(MODEL_ROOT).free < needed + 3 * 1024**3:
-        raise RuntimeError("空き容量が不足しています。50GB以上のVolumeを確認してください")
+        shortfall = needed + 3 * 1024**3 - shutil.disk_usage(MODEL_ROOT).free
+        required_gb = max(1, (shortfall + 1024**3 - 1) // 1024**3)
+        raise RuntimeError(f"空き容量が不足しています。少なくとも約{required_gb}GB追加してください")
     CANCEL_EVENT.clear()
     next_state = _default_state()
     next_state.update(

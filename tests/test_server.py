@@ -11,6 +11,10 @@ def install_dummy_models() -> None:
         config.model_path(key).touch()
     (config.MODEL_ROOT / "text_encoders" / config.TEXT_ENCODER).touch()
     (config.MODEL_ROOT / "vae" / config.VAE).touch()
+    for key in config.H3_FILE_KEYS:
+        path = config.MODEL_ROOT / config.MODEL_FILES[key]["relative_path"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
 
 
 def test_setup_login_config_generate_and_lora_upload() -> None:
@@ -40,7 +44,9 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
 
     response = client.get("/api/models")
     assert response.status_code == 200
-    assert {item["key"] for item in response.json()["packages"]} == {"turbo", "raw", "all"}
+    assert {item["key"] for item in response.json()["packages"]} == {
+        "turbo", "raw", "all", "h3", "recommended", "everything"
+    }
     assert response.json()["download_disabled"] is True
 
     response = client.post("/api/models/install/turbo")
@@ -69,6 +75,40 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
     )
     assert response.status_code == 200
     assert response.json()["seed"] == 123
+
+    response = client.get("/api/h3/status")
+    assert response.status_code == 200
+    assert response.json()["region"]["allowed"] is True
+    assert response.json()["accepted"] is False
+
+    response = client.post(
+        "/api/h3/accept",
+        data={
+            "territory_confirm": "yes",
+            "license_confirm": "yes",
+            "disclosure_confirm": "yes",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+
+    response = client.post(
+        "/api/video/generate",
+        data={"mode": "t2v", "prompt": "a quiet cafe", "ratio": "16:9", "duration": "5", "seed": "321"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["seed"] == 321
+
+    png_header = b"\x89PNG\r\n\x1a\n" + b"demo"
+    response = client.post(
+        "/api/video/generate",
+        data={"mode": "flf", "prompt": "camera moves forward", "ratio": "9:16", "duration": "5"},
+        files={
+            "first_frame": ("first.png", png_header, "image/png"),
+            "last_frame": ("last.png", png_header, "image/png"),
+        },
+    )
+    assert response.status_code == 200, response.text
 
 
 def test_unauthenticated_api_is_rejected_after_setup() -> None:

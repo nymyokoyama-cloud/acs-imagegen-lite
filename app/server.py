@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import FastAPI, Form, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
@@ -23,12 +23,19 @@ from .config import (
     APP_DIR,
     APP_NAME,
     COMFY_URL,
+    COMFY_INPUT_DIR,
     COOKIE_SECURE,
     DATA_DIR,
     DB_PATH,
     DISABLE_WORKER,
     JOB_TIMEOUT_SEC,
+    H3_ACCEPTANCE_FILE,
+    H3_LICENSE_URL,
+    H3_LICENSE_VERSION,
+    H3_MODEL_KEY,
+    H3_SIZES,
     LORA_DIR,
+    MAX_INPUT_IMAGE_BYTES,
     MAX_LORA_BYTES,
     MAX_PROMPT_LENGTH,
     MODEL_DEFINITIONS,
@@ -39,10 +46,13 @@ from .config import (
     STYLES,
     VERSION,
     ensure_directories,
+    h3_available,
+    h3_region_status,
     model_available,
 )
-from .workflow import build_workflow
+from .workflow import build_h3_workflow, build_workflow
 from .model_manager import cancel_install, public_status as model_public_status, start_install
+from .config import MODEL_PACKAGES
 
 
 HTML_PATH = APP_DIR / "templates" / "index.html"
@@ -50,6 +60,8 @@ PASSWORD_MIN_LENGTH = 10
 SESSION_MAX_AGE = 12 * 60 * 60
 PASSWORD_ITERATIONS = 600_000
 SAFE_LORA_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+VIDEO_MODES = {"t2v", "i2v", "flf"}
+MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm"}
 LOGIN_FAILURES: dict[str, list[float]] = {}
 LOGIN_WINDOW_SECONDS = 5 * 60
 LOGIN_MAX_FAILURES = 8
@@ -84,13 +96,33 @@ def db() -> sqlite3.Connection:
         )
         """
     )
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    migrations = {
+        "job_kind": "TEXT NOT NULL DEFAULT 'image'",
+        "video_mode": "TEXT",
+        "duration": "REAL",
+        "first_frame_name": "TEXT",
+        "last_frame_name": "TEXT",
+    }
+    for name, declaration in migrations.items():
+        if name not in columns:
+            conn.execute(f"ALTER TABLE jobs ADD COLUMN {name} {declaration}")
     conn.commit()
     return conn
 
 
 with db() as _initial_db:
+    _interrupted_jobs = _initial_db.execute("SELECT * FROM jobs WHERE status='running'").fetchall()
     _initial_db.execute("UPDATE jobs SET status='error', error='server restarted' WHERE status='running'")
     _initial_db.commit()
+for _interrupted_job in _interrupted_jobs:
+    _cleanup_values = {
+        "first_frame_name": _interrupted_job["first_frame_name"],
+        "last_frame_name": _interrupted_job["last_frame_name"],
+    }
+    for _cleanup_name in _cleanup_values.values():
+        if _cleanup_name:
+            (COMFY_INPUT_DIR / Path(str(_cleanup_name)).name).unlink(missing_ok=True)
 
 
 def touch_activity() -> None:
@@ -214,6 +246,71 @@ def safe_lora_name(name: str) -> str:
     return clean
 
 
+def h3_acceptance() -> dict[str, Any] | None:
+    try:
+        record = json.loads(H3_ACCEPTANCE_FILE.read_text(encoding="utf-8"))
+        if record.get("license_version") == H3_LICENSE_VERSION and record.get("accepted") is True:
+            return record
+    except Exception:
+        pass
+    return None
+
+
+def h3_ready_for_access() -> tuple[bool, str]:
+    region = h3_region_status()
+    if not region["allowed"]:
+        return False, str(region["reason"])
+    if not h3_acceptance():
+        return False, "MiniMax H3の利用条件への同意が必要です"
+    return True, "利用できます"
+
+
+def _image_suffix(header: bytes) -> str | None:
+    if header.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if header.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if len(header) >= 12 and header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+async def save_input_image(file: Optional[UploadFile], label: str) -> Optional[str]:
+    if file is None or not file.filename:
+        return None
+    temporary = COMFY_INPUT_DIR / f".{secrets.token_hex(16)}.uploading"
+    total = 0
+    header = b""
+    try:
+        with temporary.open("xb") as handle:
+            while chunk := await file.read(1024 * 1024):
+                if not header:
+                    header = chunk[:16]
+                total += len(chunk)
+                if total > MAX_INPUT_IMAGE_BYTES:
+                    raise ValueError(f"{label}は{MAX_INPUT_IMAGE_BYTES // 1024**2}MB以下にしてください")
+                handle.write(chunk)
+        suffix = _image_suffix(header)
+        if not suffix:
+            raise ValueError(f"{label}はPNG・JPEG・WebPだけ使用できます")
+        destination = COMFY_INPUT_DIR / f"h3-{secrets.token_hex(16)}{suffix}"
+        temporary.replace(destination)
+        return destination.name
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def _cleanup_job_inputs(row: sqlite3.Row | dict[str, Any]) -> None:
+    for key in ("first_frame_name", "last_frame_name"):
+        try:
+            value = row[key]
+        except (KeyError, IndexError):
+            value = None
+        if value:
+            (COMFY_INPUT_DIR / Path(str(value)).name).unlink(missing_ok=True)
+
+
 def list_loras() -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for path in sorted(LORA_DIR.glob("*.safetensors"), key=lambda p: p.name.lower()):
@@ -251,27 +348,49 @@ def _submit_to_comfy(graph: dict[str, Any]) -> str:
 def _copy_comfy_output(history: dict[str, Any], prompt_id: str, job_id: int) -> str:
     outputs = history.get(prompt_id, {}).get("outputs", {})
     for node in outputs.values():
-        for image in node.get("images", []):
-            filename = Path(image.get("filename", "")).name
-            if not filename:
-                continue
-            subfolder = Path(image.get("subfolder", ""))
-            if subfolder.is_absolute() or ".." in subfolder.parts:
-                continue
-            source_root = Path(os.environ.get("ACS_COMFY_OUTPUT_DIR", "/workspace/comfy-output"))
-            source = source_root / subfolder / filename
-            if not source.is_file():
-                continue
-            suffix = source.suffix.lower() if source.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"} else ".png"
-            destination = OUTPUT_DIR / f"job-{job_id}{suffix}"
-            shutil.copy2(source, destination)
-            return destination.name
-    raise RuntimeError("ComfyUI output image was not found")
+        for output_type in ("videos", "gifs", "images"):
+            for media in node.get(output_type, []):
+                filename = Path(media.get("filename", "")).name
+                if not filename:
+                    continue
+                subfolder = Path(media.get("subfolder", ""))
+                if subfolder.is_absolute() or ".." in subfolder.parts:
+                    continue
+                source_root = Path(os.environ.get("ACS_COMFY_OUTPUT_DIR", "/workspace/comfy-output"))
+                source = source_root / subfolder / filename
+                if not source.is_file() or source.suffix.lower() not in MEDIA_SUFFIXES:
+                    continue
+                destination = OUTPUT_DIR / f"job-{job_id}{source.suffix.lower()}"
+                shutil.copy2(source, destination)
+                return destination.name
+    raise RuntimeError("ComfyUI output file was not found")
 
 
 def run_job(row: sqlite3.Row) -> str:
     if not comfy_alive():
         raise RuntimeError("ComfyUI is not ready")
+    if row["job_kind"] == "video":
+        allowed, reason = h3_ready_for_access()
+        if not allowed:
+            raise RuntimeError(reason)
+        if not h3_available():
+            raise RuntimeError("MiniMax H3 model is not installed")
+        ratio = row["ratio"]
+        if ratio not in H3_SIZES:
+            raise RuntimeError("invalid H3 ratio")
+        width, height = H3_SIZES[ratio]
+        graph = build_h3_workflow(
+            mode=row["video_mode"],
+            prompt=row["prompt"],
+            width=width,
+            height=height,
+            seconds=float(row["duration"]),
+            seed=int(row["seed"]),
+            first_frame=row["first_frame_name"],
+            last_frame=row["last_frame_name"],
+        )
+        return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]))
+
     model_key = row["model_key"]
     if not model_available(model_key):
         raise RuntimeError(f"model is not installed: {model_key}")
@@ -294,10 +413,13 @@ def run_job(row: sqlite3.Row) -> str:
         trigger_word=row["trigger_word"],
         style_key=row["style_key"],
     )
-    prompt_id = _submit_to_comfy(graph)
+    return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]))
+
+
+def _wait_for_comfy(prompt_id: str, job_id: int) -> str:
     deadline = time.time() + JOB_TIMEOUT_SEC
     while time.time() < deadline:
-        if cancel_requested(int(row["id"])):
+        if cancel_requested(job_id):
             try:
                 urllib.request.urlopen(
                     urllib.request.Request(f"{COMFY_URL}/interrupt", data=b"", method="POST"),
@@ -310,7 +432,7 @@ def run_job(row: sqlite3.Row) -> str:
             with urllib.request.urlopen(f"{COMFY_URL}/history/{prompt_id}", timeout=10) as response:
                 history = json.load(response)
             if prompt_id in history:
-                return _copy_comfy_output(history, prompt_id, int(row["id"]))
+                return _copy_comfy_output(history, prompt_id, job_id)
         except urllib.error.URLError:
             pass
         time.sleep(2)
@@ -347,6 +469,8 @@ def worker_loop() -> None:
                     (status, str(exc)[:500], time.time(), row["id"]),
                 )
                 conn.commit()
+        finally:
+            _cleanup_job_inputs(row)
 
 
 def public_job(row: sqlite3.Row) -> dict[str, Any]:
@@ -357,6 +481,9 @@ def public_job(row: sqlite3.Row) -> dict[str, Any]:
         "started_at": row["started_at"],
         "finished_at": row["finished_at"],
         "model_key": row["model_key"],
+        "job_kind": row["job_kind"],
+        "video_mode": row["video_mode"],
+        "duration": row["duration"],
         "prompt": row["prompt"],
         "ratio": row["ratio"],
         "seed": row["seed"],
@@ -474,6 +601,8 @@ def api_config():
             for key, value in MODEL_DEFINITIONS.items()
         ],
         "ratios": list(SIZES.keys()),
+        "h3_ratios": list(H3_SIZES.keys()),
+        "h3_available": h3_available(),
         "styles": [{"key": key, "label": value[0]} for key, value in STYLES.items()],
         "loras": list_loras(),
         "pod_default_action": "terminate",
@@ -483,11 +612,57 @@ def api_config():
 
 @app.get("/api/models")
 def api_models():
-    return model_public_status()
+    result = model_public_status()
+    result["h3"] = api_h3_status()
+    return result
+
+
+@app.get("/api/h3/status")
+def api_h3_status():
+    region = h3_region_status()
+    accepted = h3_acceptance()
+    return {
+        "model_name": "MiniMax H3",
+        "available": h3_available(),
+        "accepted": bool(accepted),
+        "accepted_at": accepted.get("accepted_at") if accepted else None,
+        "license_version": H3_LICENSE_VERSION,
+        "license_url": H3_LICENSE_URL,
+        "region": region,
+    }
+
+
+@app.post("/api/h3/accept")
+def api_h3_accept(
+    territory_confirm: str = Form(...),
+    license_confirm: str = Form(...),
+    disclosure_confirm: str = Form(...),
+):
+    region = h3_region_status()
+    if not region["allowed"]:
+        return JSONResponse({"error": str(region["reason"])}, status_code=451)
+    if {territory_confirm, license_confirm, disclosure_confirm} != {"yes"}:
+        return JSONResponse({"error": "3項目すべての確認が必要です"}, status_code=400)
+    record = {
+        "accepted": True,
+        "accepted_at": time.time(),
+        "license_version": H3_LICENSE_VERSION,
+        "runpod_dc_id": region["dc_id"],
+    }
+    temporary = H3_ACCEPTANCE_FILE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(H3_ACCEPTANCE_FILE)
+    touch_activity()
+    return api_h3_status()
 
 
 @app.post("/api/models/install/{package_key}")
 def api_models_install(package_key: str):
+    package = MODEL_PACKAGES.get(package_key)
+    if package and package.get("requires_h3_terms"):
+        allowed, reason = h3_ready_for_access()
+        if not allowed:
+            return JSONResponse({"error": reason}, status_code=451)
     try:
         result = start_install(package_key)
     except (RuntimeError, ValueError) as exc:
@@ -562,6 +737,72 @@ def api_generate(
     return {"ok": True, "job_id": job_id, "seed": seed_value}
 
 
+@app.post("/api/video/generate")
+async def api_video_generate(
+    mode: str = Form(...),
+    prompt: str = Form(...),
+    ratio: str = Form("16:9"),
+    duration: float = Form(5.0),
+    seed: str = Form(""),
+    first_frame: Optional[UploadFile] = None,
+    last_frame: Optional[UploadFile] = None,
+):
+    allowed, reason = h3_ready_for_access()
+    if not allowed:
+        return JSONResponse({"error": reason}, status_code=451)
+    if not h3_available():
+        return JSONResponse({"error": "MiniMax H3モデルを先に準備してください"}, status_code=400)
+    prompt = prompt.strip()
+    if not prompt or len(prompt) > MAX_PROMPT_LENGTH:
+        return JSONResponse({"error": "プロンプトが空か、長すぎます"}, status_code=400)
+    if mode not in VIDEO_MODES or ratio not in H3_SIZES:
+        return JSONResponse({"error": "動画モードまたは比率が不正です"}, status_code=400)
+    if not 3 <= duration <= 10:
+        return JSONResponse({"error": "動画の長さは3〜10秒にしてください"}, status_code=400)
+    if mode in {"i2v", "flf"} and (first_frame is None or not first_frame.filename):
+        return JSONResponse({"error": "開始フレーム画像を選択してください"}, status_code=400)
+    if mode == "flf" and (last_frame is None or not last_frame.filename):
+        return JSONResponse({"error": "終了フレーム画像を選択してください"}, status_code=400)
+    try:
+        seed_value = secrets.randbelow(2**32) if not seed.strip() else int(seed)
+    except ValueError:
+        return JSONResponse({"error": "Seedは整数で入力してください"}, status_code=400)
+    if not 0 <= seed_value < 2**64:
+        return JSONResponse({"error": "Seedが範囲外です"}, status_code=400)
+
+    first_name: str | None = None
+    last_name: str | None = None
+    try:
+        if mode in {"i2v", "flf"}:
+            first_name = await save_input_image(first_frame, "開始フレーム")
+        if mode == "flf":
+            last_name = await save_input_image(last_frame, "終了フレーム")
+        with db() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO jobs(
+                    status,created_at,model_key,prompt,negative,ratio,style_key,seed,
+                    lora_name,lora_strength,trigger_word,job_kind,video_mode,duration,
+                    first_frame_name,last_frame_name
+                ) VALUES('queued',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    time.time(), H3_MODEL_KEY, prompt, "", ratio, "none", seed_value,
+                    None, 1.0, "", "video", mode, duration, first_name, last_name,
+                ),
+            )
+            conn.commit()
+            job_id = cursor.lastrowid
+    except (ValueError, OSError, sqlite3.Error) as exc:
+        if first_name:
+            (COMFY_INPUT_DIR / first_name).unlink(missing_ok=True)
+        if last_name:
+            (COMFY_INPUT_DIR / last_name).unlink(missing_ok=True)
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    touch_activity()
+    return {"ok": True, "job_id": job_id, "seed": seed_value}
+
+
 @app.post("/api/jobs/{job_id}/cancel")
 def api_cancel(job_id: int):
     with db() as conn:
@@ -570,8 +811,11 @@ def api_cancel(job_id: int):
             return JSONResponse({"error": "ジョブが見つかりません"}, status_code=404)
         if row["status"] not in {"queued", "running"}:
             return JSONResponse({"error": "このジョブは停止できません"}, status_code=409)
+        full_row = conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         conn.execute("UPDATE jobs SET status='canceled', finished_at=? WHERE id=?", (time.time(), job_id))
         conn.commit()
+    if full_row and row["status"] == "queued":
+        _cleanup_job_inputs(full_row)
     touch_activity()
     return {"ok": True}
 
@@ -582,6 +826,16 @@ def api_image(name: str):
     path = OUTPUT_DIR / clean
     if not path.is_file() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
         return JSONResponse({"error": "画像が見つかりません"}, status_code=404)
+    touch_activity()
+    return FileResponse(path, filename=clean)
+
+
+@app.get("/api/outputs/{name}")
+def api_output(name: str):
+    clean = Path(name).name
+    path = OUTPUT_DIR / clean
+    if not path.is_file() or path.suffix.lower() not in MEDIA_SUFFIXES:
+        return JSONResponse({"error": "生成ファイルが見つかりません"}, status_code=404)
     touch_activity()
     return FileResponse(path, filename=clean)
 

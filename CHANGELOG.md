@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-rc1 - 2026-08-14
+
+- MiniMax H3のText to Video / Image to Video / First-Last-Frame to Videoを追加
+- H3公式4ファイル約53.9GBをUIから取得し、SHA-256確認・中断・再開に対応
+- Krea2 Turbo＋H3のおすすめ構成と、全モデル構成を追加
+- H3ライセンス同意、RunPodリージョン制限、MiniMax表示、AI生成表示注意を追加
+- PNG / JPEG / WebPのフレーム入力、25MB上限、ランダム保存名、処理後削除を実装
+- 画像とMP4 / WebMの共通キュー・完成ギャラリーへ拡張
+- RunPod一時ディスク既定を150GB、ComfyUIをH3確認済みcommitへ更新
+
 ## 0.2.0-rc1 - 2026-08-14
 
 - スマホUIからTurbo / Raw / 両方を選んで公式モデルを取得できるモデル管理を追加

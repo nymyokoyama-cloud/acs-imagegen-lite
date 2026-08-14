@@ -10,8 +10,9 @@ from app import model_manager
 def test_model_status_exposes_beginner_packages_and_free_space() -> None:
     status = model_manager.public_status()
     packages = {item["key"]: item for item in status["packages"]}
-    assert set(packages) == {"turbo", "raw", "all"}
+    assert set(packages) == {"turbo", "raw", "all", "h3", "recommended", "everything"}
     assert packages["turbo"]["size"] < packages["all"]["size"]
+    assert packages["recommended"]["requires_h3_terms"] is True
     assert status["free_bytes"] > 0
 
 
