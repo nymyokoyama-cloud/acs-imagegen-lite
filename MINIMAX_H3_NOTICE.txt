@@ -3,3 +3,7 @@ Copyright © 2026 MiniMax. All Rights Reserved.
 
 Official license:
 https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE
+
+The full license text is bundled as MINIMAX_H3_LICENSE.txt.
+Bundled license SHA-256:
+59b99642b95ea21630e311198ddbfffbfe05aadba0c2f5d884cbdf4efcc90f44

@@ -12,11 +12,12 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, Form, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 
 from .config import (
     ACTIVITY_FILE,
@@ -30,10 +31,18 @@ from .config import (
     DISABLE_WORKER,
     JOB_TIMEOUT_SEC,
     H3_ACCEPTANCE_FILE,
+    H3_ACCEPTANCE_LOG_FILE,
+    H3_ENFORCEMENT_PATH,
+    H3_LICENSE_PATH,
+    H3_LICENSE_SHA256,
     H3_LICENSE_URL,
     H3_LICENSE_VERSION,
     H3_MODEL_KEY,
+    H3_REPORT_URL,
+    H3_SAFETY_LOG_FILE,
     H3_SIZES,
+    H3_TERMS_PATH,
+    H3_TERMS_VERSION,
     LORA_DIR,
     MAX_INPUT_IMAGE_BYTES,
     MAX_LORA_BYTES,
@@ -53,6 +62,7 @@ from .config import (
 from .workflow import build_h3_workflow, build_workflow
 from .model_manager import cancel_install, public_status as model_public_status, start_install
 from .config import MODEL_PACKAGES
+from .h3_safety import blocked_h3_categories
 
 
 HTML_PATH = APP_DIR / "templates" / "index.html"
@@ -62,9 +72,20 @@ PASSWORD_ITERATIONS = 600_000
 SAFE_LORA_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
 VIDEO_MODES = {"t2v", "i2v", "flf"}
 MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm"}
+H3_CONFIRMATION_KEYS = (
+    "territory",
+    "license",
+    "aup",
+    "rights",
+    "disclosure",
+    "no_other_ai_training",
+    "reporting",
+)
 LOGIN_FAILURES: dict[str, list[float]] = {}
 LOGIN_WINDOW_SECONDS = 5 * 60
 LOGIN_MAX_FAILURES = 8
+H3_ACCEPTANCE_LOCK = threading.Lock()
+H3_SAFETY_LOG_LOCK = threading.Lock()
 
 
 ensure_directories()
@@ -247,19 +268,57 @@ def safe_lora_name(name: str) -> str:
 
 
 def h3_acceptance() -> dict[str, Any] | None:
+    if not h3_license_integrity_ok():
+        return None
     try:
         record = json.loads(H3_ACCEPTANCE_FILE.read_text(encoding="utf-8"))
-        if record.get("license_version") == H3_LICENSE_VERSION and record.get("accepted") is True:
+        confirmations = record.get("confirmations", {})
+        if (
+            record.get("license_version") == H3_LICENSE_VERSION
+            and record.get("license_sha256") == H3_LICENSE_SHA256
+            and record.get("terms_version") == H3_TERMS_VERSION
+            and record.get("accepted") is True
+            and all(confirmations.get(key) is True for key in H3_CONFIRMATION_KEYS)
+        ):
             return record
     except Exception:
         pass
     return None
 
 
+def h3_license_integrity_ok() -> bool:
+    try:
+        digest = hashlib.sha256(H3_LICENSE_PATH.read_bytes()).hexdigest()
+        return hmac.compare_digest(digest, H3_LICENSE_SHA256)
+    except OSError:
+        return False
+
+
+def log_h3_safety_block(categories: list[str], stage: str) -> None:
+    record = {
+        "blocked_at": datetime.now(timezone.utc).isoformat(),
+        "app_version": VERSION,
+        "stage": stage,
+        "categories": sorted(set(categories)),
+    }
+    try:
+        with H3_SAFETY_LOG_LOCK:
+            with H3_SAFETY_LOG_FILE.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            H3_SAFETY_LOG_FILE.chmod(0o600)
+    except OSError:
+        # 監査ログ障害があっても、安全側の生成拒否は継続する。
+        pass
+
+
 def h3_ready_for_access() -> tuple[bool, str]:
     region = h3_region_status()
     if not region["allowed"]:
         return False, str(region["reason"])
+    if not h3_license_integrity_ok():
+        return False, "同梱MiniMax H3ライセンスの完全性を確認できません"
     if not h3_acceptance():
         return False, "MiniMax H3の利用条件への同意が必要です"
     return True, "利用できます"
@@ -345,7 +404,9 @@ def _submit_to_comfy(graph: dict[str, Any]) -> str:
     return str(prompt_id)
 
 
-def _copy_comfy_output(history: dict[str, Any], prompt_id: str, job_id: int) -> str:
+def _copy_comfy_output(
+    history: dict[str, Any], prompt_id: str, job_id: int, *, h3_output: bool = False
+) -> str:
     outputs = history.get(prompt_id, {}).get("outputs", {})
     for node in outputs.values():
         for output_type in ("videos", "gifs", "images"):
@@ -360,7 +421,8 @@ def _copy_comfy_output(history: dict[str, Any], prompt_id: str, job_id: int) -> 
                 source = source_root / subfolder / filename
                 if not source.is_file() or source.suffix.lower() not in MEDIA_SUFFIXES:
                     continue
-                destination = OUTPUT_DIR / f"job-{job_id}{source.suffix.lower()}"
+                marker = "-minimax-h3-ai" if h3_output else ""
+                destination = OUTPUT_DIR / f"job-{job_id}{marker}{source.suffix.lower()}"
                 shutil.copy2(source, destination)
                 return destination.name
     raise RuntimeError("ComfyUI output file was not found")
@@ -373,6 +435,10 @@ def run_job(row: sqlite3.Row) -> str:
         allowed, reason = h3_ready_for_access()
         if not allowed:
             raise RuntimeError(reason)
+        blocked = blocked_h3_categories(str(row["prompt"]))
+        if blocked:
+            log_h3_safety_block(blocked, "worker")
+            raise RuntimeError("MiniMax H3安全フィルターにより生成を拒否しました")
         if not h3_available():
             raise RuntimeError("MiniMax H3 model is not installed")
         ratio = row["ratio"]
@@ -389,7 +455,7 @@ def run_job(row: sqlite3.Row) -> str:
             first_frame=row["first_frame_name"],
             last_frame=row["last_frame_name"],
         )
-        return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]))
+        return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]), h3_output=True)
 
     model_key = row["model_key"]
     if not model_available(model_key):
@@ -416,7 +482,7 @@ def run_job(row: sqlite3.Row) -> str:
     return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]))
 
 
-def _wait_for_comfy(prompt_id: str, job_id: int) -> str:
+def _wait_for_comfy(prompt_id: str, job_id: int, *, h3_output: bool = False) -> str:
     deadline = time.time() + JOB_TIMEOUT_SEC
     while time.time() < deadline:
         if cancel_requested(job_id):
@@ -432,7 +498,7 @@ def _wait_for_comfy(prompt_id: str, job_id: int) -> str:
             with urllib.request.urlopen(f"{COMFY_URL}/history/{prompt_id}", timeout=10) as response:
                 history = json.load(response)
             if prompt_id in history:
-                return _copy_comfy_output(history, prompt_id, job_id)
+                return _copy_comfy_output(history, prompt_id, job_id, h3_output=h3_output)
         except urllib.error.URLError:
             pass
         time.sleep(2)
@@ -515,7 +581,16 @@ app = FastAPI(title=APP_NAME, version=VERSION)
 @app.middleware("http")
 async def authentication(request: Request, call_next):
     path = request.url.path
-    public_paths = {"/setup", "/api/setup", "/login", "/api/login", "/healthz"}
+    public_paths = {
+        "/setup",
+        "/api/setup",
+        "/login",
+        "/api/login",
+        "/healthz",
+        "/legal/minimax-h3-license",
+        "/legal/h3-terms",
+        "/legal/h3-enforcement",
+    }
     if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(request):
         return JSONResponse({"error": "origin check failed"}, status_code=403)
     if path in public_paths:
@@ -534,6 +609,21 @@ async def authentication(request: Request, call_next):
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "version": VERSION}
+
+
+@app.get("/legal/minimax-h3-license", response_class=PlainTextResponse)
+def minimax_h3_license():
+    return PlainTextResponse(H3_LICENSE_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/legal/h3-terms", response_class=PlainTextResponse)
+def h3_terms():
+    return PlainTextResponse(H3_TERMS_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/legal/h3-enforcement", response_class=PlainTextResponse)
+def h3_enforcement():
+    return PlainTextResponse(H3_ENFORCEMENT_PATH.read_text(encoding="utf-8"))
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -627,7 +717,15 @@ def api_h3_status():
         "accepted": bool(accepted),
         "accepted_at": accepted.get("accepted_at") if accepted else None,
         "license_version": H3_LICENSE_VERSION,
+        "license_sha256": H3_LICENSE_SHA256,
+        "terms_version": H3_TERMS_VERSION,
         "license_url": H3_LICENSE_URL,
+        "license_local_url": "/legal/minimax-h3-license",
+        "license_integrity_ok": h3_license_integrity_ok(),
+        "terms_url": "/legal/h3-terms",
+        "enforcement_url": "/legal/h3-enforcement",
+        "report_url": H3_REPORT_URL,
+        "safety_filter": True,
         "region": region,
     }
 
@@ -636,22 +734,58 @@ def api_h3_status():
 def api_h3_accept(
     territory_confirm: str = Form(...),
     license_confirm: str = Form(...),
+    aup_confirm: str = Form(...),
+    rights_confirm: str = Form(...),
     disclosure_confirm: str = Form(...),
+    no_training_confirm: str = Form(...),
+    reporting_confirm: str = Form(...),
 ):
     region = h3_region_status()
     if not region["allowed"]:
         return JSONResponse({"error": str(region["reason"])}, status_code=451)
-    if {territory_confirm, license_confirm, disclosure_confirm} != {"yes"}:
-        return JSONResponse({"error": "3項目すべての確認が必要です"}, status_code=400)
+    if not h3_license_integrity_ok():
+        return JSONResponse(
+            {"error": "同梱MiniMax H3ライセンスの完全性を確認できません"},
+            status_code=503,
+        )
+    submitted = (
+        territory_confirm,
+        license_confirm,
+        aup_confirm,
+        rights_confirm,
+        disclosure_confirm,
+        no_training_confirm,
+        reporting_confirm,
+    )
+    if any(value != "yes" for value in submitted):
+        return JSONResponse({"error": "7項目すべてへの同意が必要です"}, status_code=400)
+    accepted_at = datetime.now(timezone.utc).isoformat()
     record = {
         "accepted": True,
-        "accepted_at": time.time(),
+        "acceptance_id": secrets.token_hex(16),
+        "accepted_at": accepted_at,
+        "accepted_at_epoch": time.time(),
+        "app_version": VERSION,
         "license_version": H3_LICENSE_VERSION,
+        "license_sha256": H3_LICENSE_SHA256,
+        "terms_version": H3_TERMS_VERSION,
         "runpod_dc_id": region["dc_id"],
+        "report_url": H3_REPORT_URL,
+        "confirmations": {key: True for key in H3_CONFIRMATION_KEYS},
     }
-    temporary = H3_ACCEPTANCE_FILE.with_suffix(".tmp")
-    temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporary.replace(H3_ACCEPTANCE_FILE)
+    with H3_ACCEPTANCE_LOCK:
+        with H3_ACCEPTANCE_LOG_FILE.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        H3_ACCEPTANCE_LOG_FILE.chmod(0o600)
+        temporary = H3_ACCEPTANCE_FILE.with_name(
+            f".{H3_ACCEPTANCE_FILE.name}.{secrets.token_hex(8)}.tmp"
+        )
+        temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.chmod(0o600)
+        temporary.replace(H3_ACCEPTANCE_FILE)
+        H3_ACCEPTANCE_FILE.chmod(0o600)
     touch_activity()
     return api_h3_status()
 
@@ -755,6 +889,17 @@ async def api_video_generate(
     prompt = prompt.strip()
     if not prompt or len(prompt) > MAX_PROMPT_LENGTH:
         return JSONResponse({"error": "プロンプトが空か、長すぎます"}, status_code=400)
+    blocked = blocked_h3_categories(prompt)
+    if blocked:
+        log_h3_safety_block(blocked, "request")
+        return JSONResponse(
+            {
+                "error": "MiniMax H3安全フィルターにより生成を拒否しました。利用条件を確認してください。",
+                "categories": blocked,
+                "report_url": H3_REPORT_URL,
+            },
+            status_code=422,
+        )
     if mode not in VIDEO_MODES or ratio not in H3_SIZES:
         return JSONResponse({"error": "動画モードまたは比率が不正です"}, status_code=400)
     if not 3 <= duration <= 10:
@@ -837,7 +982,10 @@ def api_output(name: str):
     if not path.is_file() or path.suffix.lower() not in MEDIA_SUFFIXES:
         return JSONResponse({"error": "生成ファイルが見つかりません"}, status_code=404)
     touch_activity()
-    return FileResponse(path, filename=clean)
+    headers = {}
+    if "-minimax-h3-ai" in clean:
+        headers["X-AI-Generated-By"] = "MiniMax H3"
+    return FileResponse(path, filename=clean, headers=headers)
 
 
 @app.post("/api/loras")

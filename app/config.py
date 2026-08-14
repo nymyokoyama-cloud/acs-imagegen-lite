@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 APP_NAME = "ACS ImageGen Lite"
-VERSION = "0.3.0-rc2"
+VERSION = "0.3.0-rc3"
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = APP_DIR.parent
@@ -20,6 +20,8 @@ PASSWORD_FILE = DATA_DIR / ".password"
 SESSION_KEY_FILE = DATA_DIR / ".session_key"
 ACTIVITY_FILE = DATA_DIR / "last_activity"
 H3_ACCEPTANCE_FILE = DATA_DIR / "minimax_h3_acceptance.json"
+H3_ACCEPTANCE_LOG_FILE = DATA_DIR / "minimax_h3_acceptance_log.jsonl"
+H3_SAFETY_LOG_FILE = DATA_DIR / "minimax_h3_safety_log.jsonl"
 LORA_DIR = MODEL_ROOT / "loras"
 MODEL_STATE_FILE = DATA_DIR / "model_download_state.json"
 MODEL_VERIFIED_FILE = DATA_DIR / "verified_models.json"
@@ -133,12 +135,17 @@ VAE = "qwen_image_vae.safetensors"
 H3_MODEL_KEY = "minimax_h3"
 H3_LICENSE_VERSION = "2026-08-02"
 H3_LICENSE_URL = "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE"
-H3_ALLOWED_DC_PREFIXES = tuple(
-    value.strip()
-    for value in os.environ.get("ACS_H3_ALLOWED_DC_PREFIXES", "AP-JP-1").split(",")
-    if value.strip()
+H3_LICENSE_SHA256 = "59b99642b95ea21630e311198ddbfffbfe05aadba0c2f5d884cbdf4efcc90f44"
+H3_TERMS_VERSION = "2026-08-14-1"
+H3_LICENSE_PATH = PROJECT_DIR / "MINIMAX_H3_LICENSE.txt"
+H3_TERMS_PATH = PROJECT_DIR / "docs" / "H3-TERMS.md"
+H3_ENFORCEMENT_PATH = PROJECT_DIR / "docs" / "H3-ENFORCEMENT.md"
+H3_REPORT_URL = os.environ.get(
+    "ACS_H3_REPORT_URL",
+    "mailto:info@acs-developer.com?subject=MiniMax%20H3%20suspected%20violation",
 )
-H3_ALLOW_UNVERIFIED_REGION = os.environ.get("ACS_H3_ALLOW_UNVERIFIED_REGION", "0") == "1"
+# 公開配布版は日本のRunPodリージョンだけを許可し、環境変数による解除口を設けない。
+H3_ALLOWED_DC_PREFIXES = ("AP-JP-1",)
 H3_SIZES = {
     "16:9": (864, 480),
     "9:16": (480, 864),
@@ -205,12 +212,8 @@ def h3_available() -> bool:
 
 def h3_region_status() -> dict[str, object]:
     dc_id = os.environ.get("RUNPOD_DC_ID", "").strip()
-    allowed = H3_ALLOW_UNVERIFIED_REGION or bool(
-        dc_id and any(dc_id.startswith(prefix) for prefix in H3_ALLOWED_DC_PREFIXES)
-    )
-    if H3_ALLOW_UNVERIFIED_REGION:
-        reason = "開発者の明示設定により地域確認を省略しています"
-    elif allowed:
+    allowed = bool(dc_id and any(dc_id.startswith(prefix) for prefix in H3_ALLOWED_DC_PREFIXES))
+    if allowed:
         reason = f"RunPodリージョン {dc_id} はこの配布設定の許可対象です"
     elif dc_id:
         reason = f"RunPodリージョン {dc_id} ではH3を有効化できません"

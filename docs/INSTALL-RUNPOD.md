@@ -8,7 +8,7 @@
 4. 一時ディスクは150GBにします。継続保存したい人だけ150GB以上のNetwork Volumeを`/workspace`へ接続します。
 5. Deploy後、Connect画面からHTTP Port 8080を開きます。
 6. 10文字以上のパスワードを設定してログインします。
-7. H3を使う場合は画面の利用条件3項目を確認します。
+7. H3を使う場合は同梱ライセンス全文と日本語条件を読み、画面の7項目へ同意します。
 8. 「おすすめ：Krea2 Turbo + MiniMax H3」または必要なモデルだけを選び、100%まで待ちます。中断後は同じボタンで再開できます。
 9. 生成物をスマホへ保存し、Network Volumeを使わない場合は「Podを完全削除」で終了します。
 
@@ -35,7 +35,7 @@ RunPod APIキーをUIへ入力する必要はありません。モデルはス�
 
 `runpod-template.json`は設定値の正本です。RunPodのCustom Templatesへ次を反映します。
 
-- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc2`
+- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0-rc3`
 - Container disk: 150GB
 - Volume disk: 0GB（利用者の任意）
 - Volume mount: `/workspace`
@@ -49,13 +49,13 @@ Lite UIはComfyUIをローカル8188、Web UIを8080で起動します。モデ�
 | 変数 | 既定値 | 内容 |
 |---|---:|---|
 | `ACS_AUTO_INSTALL_MODELS` | `none` | UI選択。管理者向けKrea2のみ`turbo` / `all` |
-| `ACS_H3_ALLOWED_DC_PREFIXES` | `AP-JP-1` | 法務確認済みH3リージョンの接頭辞 |
-| `ACS_H3_ALLOW_UNVERIFIED_REGION` | `0` | 開発テスト専用。一般配布では変更しない |
 | `ACS_IDLE_MINUTES` | `20` | ジョブがない状態で自動終了するまで |
 | `ACS_MAX_UPTIME_MINUTES` | `180` | ジョブ終了後に適用する最大稼働時間 |
 | `ACS_IDLE_ACTION` | `auto` | `auto` / `stop` / `terminate` |
 | `ACS_MAX_INPUT_IMAGE_BYTES` | `25MB` | H3フレーム画像1枚の上限 |
 | `ACS_MAX_LORA_BYTES` | `2GB` | LoRAアップロード上限 |
+
+H3の許可リージョンはアプリ内で日本`AP-JP-1`へ固定しています。配布テンプレートに地域ゲートを解除する環境変数はありません。通報先を自社窓口へ変更する再配布者だけ、`ACS_H3_REPORT_URL`を設定できます。
 
 ## トラブル時
 

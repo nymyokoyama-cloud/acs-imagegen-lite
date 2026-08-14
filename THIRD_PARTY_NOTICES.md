@@ -22,10 +22,11 @@ Dockerイメージを配布するときは、そのイメージ内に含まれ�
 
 - モデル取得元: https://huggingface.co/Comfy-Org/MiniMax-H3
 - ライセンス原文: https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE
+- 同梱原文: `MINIMAX_H3_LICENSE.txt`（SHA-256 `59b99642b95ea21630e311198ddbfffbfe05aadba0c2f5d884cbdf4efcc90f44`）
 - Lite版が取得するもの: FP8 diffusion model、Qwen3-VL 32B int8 text encoder、video VAE、audio VAE
 - 必須表示: `MINIMAX_H3_NOTICE.txt`
 
-MiniMax H3には地域・商用規模・公開時のAI生成表示・他AI学習禁止等の条件があります。Lite版は既定で日本RunPodリージョンだけを許可し、UIで利用者の確認を取得します。詳細は`docs/H3-TERMS.md`を確認してください。
+MiniMax H3には地域・商用規模・公開時のAI生成表示・他AI学習禁止等の条件があります。Lite版は日本RunPodリージョンだけを許可し、7項目の同意記録、サーバー側安全フィルター、通報・停止方針を実装しています。詳細は`docs/H3-TERMS.md`と`docs/H3-ENFORCEMENT.md`を確認してください。
 
 ## RunPod
 

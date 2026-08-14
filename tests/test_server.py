@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 from fastapi.testclient import TestClient
 
 from app import config
@@ -15,6 +18,18 @@ def install_dummy_models() -> None:
         path = config.MODEL_ROOT / config.MODEL_FILES[key]["relative_path"]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch()
+
+
+def h3_acceptance_form() -> dict[str, str]:
+    return {
+        "territory_confirm": "yes",
+        "license_confirm": "yes",
+        "aup_confirm": "yes",
+        "rights_confirm": "yes",
+        "disclosure_confirm": "yes",
+        "no_training_confirm": "yes",
+        "reporting_confirm": "yes",
+    }
 
 
 def test_setup_login_config_generate_and_lora_upload() -> None:
@@ -48,6 +63,9 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
         "turbo", "raw", "all", "h3", "recommended", "everything"
     }
     assert response.json()["download_disabled"] is True
+
+    response = client.post("/api/models/install/h3")
+    assert response.status_code == 451
 
     response = client.post("/api/models/install/turbo")
     assert response.status_code == 409
@@ -83,14 +101,17 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
 
     response = client.post(
         "/api/h3/accept",
-        data={
-            "territory_confirm": "yes",
-            "license_confirm": "yes",
-            "disclosure_confirm": "yes",
-        },
+        data=h3_acceptance_form(),
     )
     assert response.status_code == 200
     assert response.json()["accepted"] is True
+    assert response.json()["terms_version"] == config.H3_TERMS_VERSION
+    assert response.json()["license_integrity_ok"] is True
+    record = json.loads(config.H3_ACCEPTANCE_FILE.read_text(encoding="utf-8"))
+    assert record["license_sha256"] == config.H3_LICENSE_SHA256
+    assert all(record["confirmations"].values())
+    assert config.H3_ACCEPTANCE_LOG_FILE.read_text(encoding="utf-8").count("\n") == 1
+    assert config.H3_ACCEPTANCE_FILE.stat().st_mode & 0o777 == 0o600
 
     response = client.post(
         "/api/video/generate",
@@ -98,6 +119,21 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
     )
     assert response.status_code == 200, response.text
     assert response.json()["seed"] == 321
+
+    response = client.post(
+        "/api/video/generate",
+        data={
+            "mode": "t2v",
+            "prompt": "a deepfake of a real person without consent for fraud",
+            "ratio": "16:9",
+            "duration": "5",
+        },
+    )
+    assert response.status_code == 422
+    assert "nonconsensual_impersonation" in response.json()["categories"]
+    safety_event = json.loads(config.H3_SAFETY_LOG_FILE.read_text(encoding="utf-8").splitlines()[-1])
+    assert safety_event["stage"] == "request"
+    assert "prompt" not in safety_event
 
     png_header = b"\x89PNG\r\n\x1a\n" + b"demo"
     response = client.post(
@@ -109,6 +145,23 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
         },
     )
     assert response.status_code == 200, response.text
+
+    output = config.OUTPUT_DIR / "job-999-minimax-h3-ai.mp4"
+    output.write_bytes(b"demo-video")
+    response = client.get(f"/api/outputs/{output.name}")
+    assert response.status_code == 200
+    assert response.headers["x-ai-generated-by"] == "MiniMax H3"
+
+
+def test_h3_legal_documents_are_public_and_pinned() -> None:
+    client = TestClient(app)
+    client.cookies.clear()
+    response = client.get("/legal/minimax-h3-license")
+    assert response.status_code == 200
+    assert hashlib.sha256(response.content).hexdigest() == config.H3_LICENSE_SHA256
+    assert "Exhibit A" in response.text
+    assert client.get("/legal/h3-terms").status_code == 200
+    assert client.get("/legal/h3-enforcement").status_code == 200
 
 
 def test_unauthenticated_api_is_rejected_after_setup() -> None:

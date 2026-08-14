@@ -7,6 +7,7 @@ RunPod上でKrea2画像生成とMiniMax H3動画生成を、スマホから扱�
 - Krea2 Turbo / RawのText to Image、任意LoRA
 - MiniMax H3のText to Video / Image to Video / First-Last-Frame to Video
 - H3ネイティブ音声、3〜10秒、16:9 / 9:16 / 1:1
+- H3の公式ライセンス全文同梱、7項目の同意履歴、地域ゲート、安全フィルター、通報導線
 - スマホUIから公式モデルを取得、進捗・中断・再開・SHA-256確認
 - 初回パスワード、生成キュー、キャンセル、画像・動画ギャラリー
 - RunPod停止・完全削除、アイドル時と最大稼働時間の自動終了
@@ -19,11 +20,11 @@ UIの「おすすめ：Krea2 Turbo + MiniMax H3」を選ぶと、Krea2画像生�
 
 ## MiniMax H3の条件
 
-H3には独自ライセンスがあります。Lite版は既定で日本のRunPodリージョンだけを許可し、UIで利用条件への確認が完了するまでH3の取得・生成を拒否します。モデルは同梱せず、公式URLから取得します。
+H3には独自ライセンスがあります。Lite版は日本のRunPodリージョンだけを許可し、UIで7項目への同意が完了するまでH3の取得・生成をサーバー側で拒否します。同意履歴、プロンプト安全検査、AI生成ファイル名、通報・停止方針も実装しています。モデルは同梱せず、公式URLから取得します。
 
 MiniMax H3 is licensed under the MiniMax H3 Community License Agreement, Copyright © 2026 MiniMax. All Rights Reserved.
 
-詳細は[H3利用条件](docs/H3-TERMS.md)と[第三者ライセンス案内](THIRD_PARTY_NOTICES.md)を確認してください。
+詳細は[H3利用条件](docs/H3-TERMS.md)、[通報・調査・停止方針](docs/H3-ENFORCEMENT.md)、[公式ライセンス同梱版](MINIMAX_H3_LICENSE.txt)、[第三者ライセンス案内](THIRD_PARTY_NOTICES.md)を確認してください。
 
 ## パソコンは必要か
 
@@ -32,8 +33,8 @@ RunPodアカウントと支払い設定が済んでいれば、一般利用者�
 ## 開発
 
 ```bash
-docker build -t acs-imagegen-lite:0.3.0-rc2 .
-docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc2
+docker build -t acs-imagegen-lite:0.3.0-rc3 .
+docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc3
 ```
 
 ```bash
@@ -41,4 +42,4 @@ docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.3.0-rc2
 bash -n scripts/bootstrap.sh scripts/start.sh
 ```
 
-公開前候補です。GHCR公開、RunPodテンプレート作成、H200実機での3動画モード確認、法務最終確認が一般配布ゲートです。
+公開前候補です。H200実機での3動画モード確認と法務最終確認が一般配布ゲートです。RunPodテンプレートは検証完了まで非公開で運用します。
