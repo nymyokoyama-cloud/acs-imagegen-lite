@@ -1,0 +1,13 @@
+.DS_Store
+.pytest_cache/
+.venv*/
+__pycache__/
+*.py[cod]
+dist/
+*.zip
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.gguf
+acs-imagegen-lite-data/

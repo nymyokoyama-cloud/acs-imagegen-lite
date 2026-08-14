@@ -1,0 +1,72 @@
+ACS IMAGEGEN LITE LICENSE Version 1.0
+Effective date: 2026-08-14
+
+Copyright (c) 2026 ACS Developer. All rights reserved.
+
+1. Permission
+
+Subject to this License, ACS Developer grants each recipient a non-exclusive,
+worldwide, royalty-free license to:
+
+- install and use ACS ImageGen Lite for personal or commercial image-production
+  work; and
+- modify the software solely for the recipient's own internal use.
+
+Images generated with the software are not claimed by this software license.
+Their use remains subject to the licenses and terms of the models, LoRAs,
+inputs, services, and other materials used to create them.
+
+2. Restrictions
+
+Without prior written permission from ACS Developer, you may not:
+
+- sell, rent, sublicense, or provide ACS ImageGen Lite as a paid product or
+  hosted service;
+- redistribute the source code, container image, binaries, modified versions,
+  mirrors, or repackaged copies to third parties;
+- remove or obscure ACS Developer attribution, copyright notices, or this
+  License; or
+- use the software in violation of applicable law or third-party rights.
+
+You may share the official ACS Developer download or product page URL.
+
+3. Third-party components
+
+This License applies only to ACS ImageGen Lite source code authored for this
+project. Krea 2, ComfyUI, RunPod, LoRAs, Python packages, container base images,
+and all other third-party components remain governed by their own licenses and
+terms. This License grants no rights to those components.
+
+4. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY LAW, ACS
+DEVELOPER IS NOT LIABLE FOR ANY CLAIM, DAMAGE, LOSS, COST, OR OTHER LIABILITY
+ARISING FROM THE SOFTWARE OR ITS USE, INCLUDING CLOUD COMPUTE OR STORAGE FEES.
+
+5. Termination
+
+This License terminates automatically if you violate its terms. Upon
+termination, you must stop using and delete all copies in your possession or
+control. Sections 2 through 5 survive termination.
+
+6. Additional permission
+
+For redistribution, resale, hosted-service use, education bundles, or another
+use not granted above, request written permission through the official ACS
+Developer website:
+
+https://acs-developer.com/
+
+---
+
+日本語要約（理解補助。英語本文と矛盾する場合は英語本文を優先）
+
+- 個人・商用の画像制作に無料で利用できます。
+- 自分の内部利用に限り改変できます。
+- 本ソフトや改変版の再配布、再販売、有料ホスティング、ミラー配布は
+  ACS Developerの書面許可なしに行えません。
+- 公式のACS Developer配布ページURLは共有できます。
+- モデル、LoRA、生成物、RunPod等にはそれぞれ別の利用条件が適用されます。
+- クラウド利用料を含め、無保証です。

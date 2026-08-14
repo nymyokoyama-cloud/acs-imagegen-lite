@@ -1,0 +1,16 @@
+{
+  "name": "ACS ImageGen Lite 0.2.0-rc1",
+  "imageName": "ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.2.0-rc1",
+  "containerDiskInGb": 70,
+  "volumeInGb": 0,
+  "volumeMountPath": "/workspace",
+  "ports": "8080/http",
+  "env": [
+    {"key": "ACS_AUTO_INSTALL_MODELS", "value": "none"},
+    {"key": "ACS_IDLE_MINUTES", "value": "20"},
+    {"key": "ACS_MAX_UPTIME_MINUTES", "value": "180"},
+    {"key": "ACS_IDLE_ACTION", "value": "auto"},
+    {"key": "ACS_COOKIE_SECURE", "value": "1"}
+  ],
+  "readme": "docs/INSTALL-RUNPOD.md"
+}
