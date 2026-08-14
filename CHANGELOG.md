@@ -8,6 +8,7 @@
 - Pod終了要求の状態表示とRunPodコンソールでの課金停止確認導線を追加
 - 不要なJupyter / File Browserを含まないNVIDIA公式CUDA基盤へ変更し、build用環境を最終イメージから分離
 - Pillow、msgpack、setuptoolsを既知脆弱性の修正版へ固定
+- 実行時に不要なpipと内包vendor SBOMを最終イメージから除外
 - Python依存関係、静的解析、配布コンテナ、実GPU、配布購入導線を公開前検証
 
 ## 0.3.0-rc6 - 2026-08-14

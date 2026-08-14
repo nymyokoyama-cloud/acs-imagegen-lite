@@ -21,7 +21,9 @@ RUN git clone https://github.com/Comfy-Org/ComfyUI.git /opt/ComfyUI \
 
 COPY requirements.txt /opt/acs-imagegen-lite/requirements.txt
 RUN python -m pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt \
-    && python -m pip install --no-cache-dir -r /opt/acs-imagegen-lite/requirements.txt
+    && python -m pip install --no-cache-dir -r /opt/acs-imagegen-lite/requirements.txt \
+    && python -m pip check \
+    && python -m pip uninstall -y pip
 
 FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04@sha256:9175fa92f96de35a8cfb9493f0dfcf9435c7a597e9d95ad41d2cae382a95e3f9 AS runtime
 
