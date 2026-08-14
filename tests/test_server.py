@@ -75,7 +75,7 @@ def test_same_origin_still_allows_direct_host(monkeypatch) -> None:
     assert same_origin(origin_request("http://localhost:8080", "localhost:8080")) is True
 
 
-def test_setup_login_config_generate_and_lora_upload() -> None:
+def test_setup_login_config_generate_and_lora_upload(monkeypatch) -> None:
     install_dummy_models()
     client = TestClient(app)
 
@@ -127,6 +127,18 @@ def test_setup_login_config_generate_and_lora_upload() -> None:
 
     response = client.post("/api/models/install/turbo")
     assert response.status_code == 409
+
+    monkeypatch.setattr(server, "start_install", lambda package_key: {"package": package_key})
+    response = client.post("/api/models/install/turbo")
+    assert response.status_code == 200
+    assert response.json()["krea"]["accepted"] is True
+    assert "h3" in response.json()
+
+    monkeypatch.setattr(server, "cancel_install", lambda: {"status": "canceled"})
+    response = client.post("/api/models/cancel")
+    assert response.status_code == 200
+    assert response.json()["krea"]["accepted"] is True
+    assert "h3" in response.json()
 
     response = client.post(
         "/api/loras",

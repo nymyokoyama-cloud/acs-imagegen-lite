@@ -1,6 +1,7 @@
 {
-  "name": "ACS ImageGen Lite 0.3.0 - Krea2 + MiniMax H3",
-  "imageName": "ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0",
+  "name": "ACS ImageGen Lite 0.3.1 - Krea2 + MiniMax H3",
+  "imageName": "ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.1",
+  "dockerStartCmd": "/opt/acs-imagegen-lite/scripts/start.sh",
   "containerDiskInGb": 150,
   "volumeInGb": 0,
   "volumeMountPath": "/workspace",
@@ -10,7 +11,8 @@
     {"key": "ACS_IDLE_MINUTES", "value": "20"},
     {"key": "ACS_MAX_UPTIME_MINUTES", "value": "180"},
     {"key": "ACS_IDLE_ACTION", "value": "auto"},
-    {"key": "ACS_COOKIE_SECURE", "value": "1"}
+    {"key": "ACS_COOKIE_SECURE", "value": "1"},
+    {"key": "NVIDIA_DISABLE_REQUIRE", "value": "true"}
   ],
   "readme": "docs/INSTALL-RUNPOD.md"
 }

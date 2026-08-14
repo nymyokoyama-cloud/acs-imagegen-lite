@@ -41,7 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
-    && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg python3-minimal \
+    && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg python3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv

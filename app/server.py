@@ -995,21 +995,21 @@ def api_models_install(package_key: str):
         if not allowed:
             return JSONResponse({"error": reason}, status_code=451)
     try:
-        result = start_install(package_key)
+        start_install(package_key)
     except (RuntimeError, ValueError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=409)
     touch_activity()
-    return result
+    return api_models()
 
 
 @app.post("/api/models/cancel")
 def api_models_cancel():
     try:
-        result = cancel_install()
+        cancel_install()
     except RuntimeError as exc:
         return JSONResponse({"error": str(exc)}, status_code=409)
     touch_activity()
-    return result
+    return api_models()
 
 
 @app.get("/api/status")

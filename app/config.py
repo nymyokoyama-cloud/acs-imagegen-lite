@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 
 APP_NAME = "ACS ImageGen Lite"
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = APP_DIR.parent

@@ -37,7 +37,8 @@
 
 `runpod-template.json`は設定値の正本です。RunPodのCustom Templatesへ次を反映します。
 
-- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.0`
+- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.1`
+- Container start command: `/opt/acs-imagegen-lite/scripts/start.sh`
 - Container disk: 150GB
 - Volume disk: 0GB（利用者の任意）
 - Volume mount: `/workspace`
@@ -54,6 +55,7 @@ Lite UIはComfyUIをローカル8188、Web UIを8080で起動します。モデ�
 | `ACS_IDLE_MINUTES` | `20` | ジョブがない状態で自動終了するまで |
 | `ACS_MAX_UPTIME_MINUTES` | `180` | ジョブ終了後に適用する最大稼働時間 |
 | `ACS_IDLE_ACTION` | `auto` | `auto` / `stop` / `terminate` |
+| `NVIDIA_DISABLE_REQUIRE` | `true` | RunPodホスト側CUDAドライバーとの互換判定をホストへ委ねる |
 | `ACS_RUNPOD_API_KEY` | 未設定 | 任意。終了API専用のRunPod Secretを注入する場合だけ設定 |
 | `ACS_MAX_INPUT_IMAGE_BYTES` | `25MB` | H3フレーム画像1枚の上限 |
 | `ACS_MAX_LORA_BYTES` | `2GB` | LoRAアップロード上限 |
