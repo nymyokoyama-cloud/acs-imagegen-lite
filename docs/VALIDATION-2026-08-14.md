@@ -81,5 +81,17 @@ RC5でHugging Face Xet高速取得とPod終了結果APIを実装したが、Krea
 RC6のGHCRイメージは完成後SBOMを取得してTrivyで確認した。アプリの固定Python依存関係には既知脆弱性がなかった一方、従来の`runpod/pytorch`基盤にLite版で使わないJupyter / File Browser等の重大指摘が残っていた。このためRC6は不採用とし、NVIDIA公式CUDA runtimeをdigest固定した最小基盤、専用Python仮想環境、PyTorch 2.8 / CUDA 12.8公式wheelへ切り替えた。
 
 安定版は、新基盤の完成コンテナSBOM、新規RunPod一時ディスクでのKrea2 Turbo取得・1枚生成・課金停止確認を残す。ここまでは公開完成扱いにしない。
+
+### NVIDIA CUDA最小基盤のSBOM監査
+
+- edge index digest: `sha256:842401f4709819c9656f21d1514419debce1d7fdda2819277e74058f283fdb15`
+- linux/amd64 image digest: `sha256:8c61b8824ce0f22d7c5a4324c8f7b084963d5ffb2718d536131ab197cc9092fb`
+- SPDX SBOM digest: `sha256:6a9b6eba7bd6c3d0b96b09d15b0e23564d4eca4d580530ac983a392a4cb64680`
+- Trivy: Critical 0 / High 0 / Medium 1 / Low 2
+- 残件はPyTorch 2.8に対するローカル操作前提の`unpack_sequence` 1件（Medium）と同系統2件（Low）。Web UIのモデル・LoRA入力はsafetensorsに限定し、公式モデルはcommit・サイズ・SHA-256を固定している
+- PyTorch公式の`torch.load(weights_only=True)`悪性checkpoint注意も確認したが、Lite UIはpickle / pth / pt / ckptを受け付けず、当該読み込み経路を公開していない。H3実測済みのPyTorch 2.8互換性を維持する判断とした
+- Pythonアプリ固定依存: `pip-audit --local`既知脆弱性0件、Bandit未対処指摘0件、Gitleaks秘密情報0件
+
+安定版タグの完成イメージでも同じ監査を再実施し、RunPodはその後に起動する。
 4. I2V / FLF入力画像の処理後削除を実環境で確認する。
 5. スマホから3本のMP4再生を確認する。
