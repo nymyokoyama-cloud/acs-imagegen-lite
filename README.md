@@ -59,4 +59,4 @@ docker run --gpus all -p 8080:8080 acs-imagegen-lite:0.4.0
 bash -n scripts/bootstrap.sh scripts/start.sh
 ```
 
-0.4.0でZ-Image Turboを第3の画像エンジンとして追加しました。0.3.1で確認済みのKrea2・H3の実測条件と結果は[0.3.1検証記録](docs/VALIDATION-2026-08-14.md)、0.4.0のローカル検証は[0.4.0検証記録](docs/VALIDATION-2026-08-16.md)を確認してください。Z-ImageのGPU実測は公開フェーズで実施します。
+0.4.0でZ-Image Turboを第3の画像エンジンとして追加しました。0.3.1で確認済みのKrea2・H3の実測条件と結果は[0.3.1検証記録](docs/VALIDATION-2026-08-14.md)、0.4.0の検証は[0.4.0検証記録](docs/VALIDATION-2026-08-16.md)を確認してください。Z-ImageのGPU実測はRTX A4000 16GBで完了しています。

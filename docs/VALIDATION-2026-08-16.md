@@ -1,6 +1,6 @@
-# 2026-08-16 0.4.0 ローカル検証記録
+# 2026-08-16 0.4.0 検証記録
 
-0.4.0でZ-Image Turboを第3の画像エンジンとして追加した。この記録は**実装とローカル検証まで**であり、GHCR build、RunPodテンプレート更新、配布ZIP更新、商品ページ更新、GPU実測は未実施。公開完成扱いにしない。
+0.4.0でZ-Image Turboを第3の画像エンジンとして追加した。前半はローカル検証、後半（「公開フェーズ実測」以降）は同日に実施したGHCR build・GPU実測・配布物の記録。Locany商品ページとACS記事への反映だけが残っている。
 
 ## ライセンス判断
 
@@ -71,7 +71,7 @@ Z-Image TurboはComfyUI標準の`LoraLoaderModelOnly`に対応する。`comfy/su
 | Lite版int8構成の重み実サイズ | DiT 6.20GB + text encoder 5.63GB = 約11.8GB（VAE 0.34GBは別） |
 | ComfyUIの挙動 | text encoderとDiTを順次ロード・退避するため、両者の同時常駐は前提としない |
 
-結論: **16GB以上のGPU**を目安として案内する。これは公式表明と実ファイルサイズからの**見積**であり、Lite版でのGPU実測値ではない。実測は公開フェーズで行う。
+結論: **16GB以上のGPU**を目安として案内する。実装時点では公式表明と実ファイルサイズからの見積だったが、同日の公開フェーズでRTX A4000 16GBの実測により裏づけた（下記「RunPod GPU実測」。ピーク72% ≒ 約11.5GB）。
 
 比較のため、Krea2は24GB以上（0.3.1でL40S実測）、H3はH200（0.3.1で実測）を維持する。
 
@@ -124,14 +124,71 @@ Z-Image TurboはComfyUI標準の`LoraLoaderModelOnly`に対応する。`comfy/su
 - `build_workflow`のKrea2経路は既存コードのまま。Z-Imageはエンジン判定で分岐する
 - 0.3.1から存在する27件のテストはすべて修正なしで通っている（パッケージ集合とダミーモデル配置の2箇所だけZ-Image追加に合わせて拡張）
 
-## 未実施（公開フェーズ）
+## 公開フェーズ実測（2026-08-16）
 
-1. GHCR 0.4.0のbuild・push・完成コンテナSBOMとTrivy監査
-2. `pip-audit --local`の再実行（依存関係は0.3.1から未変更）
-3. RunPod 16GB級GPUでのZ-Imageモデル取得・SHA-256一致・1枚生成の実測
-4. 生成画像の目視確認とダウンロード・ヘッダー確認
-5. 持ち込みLoRAのZ-Image実生成
-6. RunPod公開テンプレートの0.4.0更新
-7. 配布ZIPの再作成・SHA-256記録
-8. Locany商品ページとACS記事の0.4.0反映
-9. RunPod実機・スマホ実機での表示確認（ローカル390px幅は確認済み）
+### GitHubとGHCR
+
+| 項目 | 値 |
+|---|---|
+| main commit | `af9887d`（`98b54e6`実装＋`af9887d`export-ignore修正をfast-forward） |
+| タグ | `v0.4.0` |
+| Actions run | `31923061257`（成功・約21分） |
+| OCI index digest | `sha256:b0905792cc0ff531a580ab1bae7a781cd1494691e3e1b2ec5a9dd4f77e91698e` |
+| linux/amd64 digest | `sha256:f812a873c6477ea45d3660ca01f99c53823e0185357cf17dfd0e210609108d49` |
+
+`.gitattributes`のexport-ignoreが`docs/VALIDATION-2026-08-14.md`をファイル名で指定していたため、この記録が配布ZIPへ入る状態だった。`docs/VALIDATION-*.md`のパターンへ変更してから公開した。
+
+### セキュリティ
+
+| 検査 | 結果 |
+|---|---|
+| `pip-audit --local`（Python 3.12・`requirements-dev.txt`のピン構成） | 既知脆弱性0件 |
+| pytest（同環境・GitHub Actions内でも実行） | 37件合格 |
+| 完成コンテナSBOM（buildxのSPDX添付証明）のTrivy・Python依存124件 | Critical 0 / High 0 / Medium 1 / Low 2 |
+| 同SBOMのOSパッケージ347件（Ubuntu 24.04） | Critical 0 / High 0 / Medium 38 / Low 2 |
+| 合計 | **Critical 0 / High 0** / Medium 39 / Low 4 |
+
+**修正版が存在する指摘は3件だけ**で、いずれもtorch 2.8.0のCVE-2025-2999 / 3000 / 3001（0.3.1と同一）。ComfyUI公式固定commitが要求するtorchバージョンのため据え置く。残る40件はすべて`affected`（Ubuntu 24.04に修正パッケージが出ていない）で、内訳はffmpeg 38件、libgcrypt20 1件、util-linux 1件。ffmpegはH3出力のMP4処理に必要なため同梱を続ける。
+
+0.3.1の記録「Medium 1 / Low 2」はPython依存だけを見た値だった。0.4.0からはOSパッケージも同じ表に載せる。SBOMにはdebとrpmのpurlが混在し、Trivyがそのままでは集計できないため、rpm 8件（Pythonホイール由来のメタデータ）を分離し、Ubuntu 24.04のOS宣言を補ってから走査した。
+
+### RunPod GPU実測（Z-Image Turbo）
+
+| 項目 | 実測値 |
+|---|---|
+| GPU | NVIDIA RTX A4000 16GB（Community Cloud・$0.17/hr） |
+| イメージ | `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.4.0` |
+| Pod作成から`/healthz` 200まで | 320秒 |
+| `/healthz`の版 | `{"ok":true,"version":"0.4.0"}` |
+| Z-Image 3ファイル取得＋SHA-256照合 | 12,168,299,735バイトを34.5秒（3件ともverified） |
+| 1枚目の生成（1344×768・8 steps・初回モデルロード込み） | 28.1秒 |
+| 2枚目以降（同条件・ロード済み） | 24.3秒 |
+| 持ち込みLoRAあり | 26.0秒 |
+| GPUメモリ利用率ピーク | 72%（16GBに対し約11.5GB） |
+| GPU利用率 | 生成中100% |
+| Pod稼働時間と費用 | 10.6分・約$0.06 |
+
+出力は`job-N-zimage-ai.png`で、`/api/images/`のレスポンスに`X-AI-Generated-By: Z-Image Turbo`が付いた。PNGを実ダウンロードして目視確認し、構図・描写ともに破綻なし。
+
+持ち込みLoRA（検証専用・配布物には一切含めない）は170,128,288バイトをUIの`/api/loras`へ62.6秒でアップロードでき、そのまま生成に使えた。**同一プロンプト・同一Seed 999でLoRAあり／なしを生成し、PNGのSHA-256が異なることを確認**した。Z-Imageは融合QKVのため合わないLoRAが無言で無効化されることがあるが、この構成では実際に重みが効いている。検証後はPodごと削除した。
+
+### 無回帰（同じPod上で確認）
+
+| 検査 | 結果 |
+|---|---|
+| `/api/config` | 画像3モデル（`krea2_turbo` / `krea2_raw` / `zimage_turbo`）を返す |
+| Krea 2未同意での生成 | 451 |
+| Krea 2未同意でのモデル取得 | 451 |
+| Krea 2同意APIへ5項目のうち1項目を`no`で送信 | 400 |
+| H3（非`AP-JP-1`リージョン） | 451・fail closed表示 |
+| Z-Image安全フィルター | 禁止カテゴリのプロンプトを422で拒否し、分類だけを返す |
+| `/legal/z-image-license` / `/legal/z-image-terms` | 認証なしで200（11,358 / 5,303バイト） |
+| UI本体 | Z-Image Turbo・Krea 2・MiniMax H3の3カードとApache-2.0表示を描画 |
+
+UIの「Podを完全削除」は202と「まだ完了ではありません」を返し、成功を装わない0.3.1の仕様どおりだった。実際の削除はRunPod APIで行い、Pod一覧が空であることを確認した。
+
+## 未実施
+
+1. Locany 0円商品とACS記事の0.4.0反映
+2. スマホ実機での表示確認（ローカル390px幅は確認済み）
+3. Krea2 RawのGPU実生成、H3入力画像の実環境削除確認、20分アイドル自動終了の時間経過試験（0.3.1から継続の公開後検証）

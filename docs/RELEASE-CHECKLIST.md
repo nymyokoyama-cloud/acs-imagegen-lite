@@ -1,8 +1,8 @@
 # 公開チェックリスト
 
-## 0.4.0 Z-Image Turbo追加（実装完了・未公開）
+## 0.4.0 Z-Image Turbo追加（公開済み）
 
-ローカル検証記録: [2026-08-16 0.4.0ローカル検証記録](VALIDATION-2026-08-16.md)
+検証記録: [2026-08-16 0.4.0検証記録](VALIDATION-2026-08-16.md)
 
 ### 完了
 
@@ -18,15 +18,19 @@
 - [x] Bandit 0件、Gitleaks 0件、個人パス・人物ラベル・APIキー・モデル混入検査合格
 - [x] Krea2 / H3の同意ゲートとfail closed機構が無回帰であることをテストで確認
 
-### 未実施（公開フェーズ）
+### 公開フェーズ（2026-08-16実施）
 
-- [ ] GHCR `0.4.0`のbuild・push（Actions）
-- [ ] 完成コンテナSBOMのTrivy監査、`pip-audit --local`
-- [ ] RunPod 16GB級GPUでZ-Imageモデル取得・SHA-256一致を実測
-- [ ] RunPod上でZ-Image 1枚生成・ダウンロード・ヘッダー確認
-- [ ] 持ち込みLoRAのZ-Image実生成
-- [ ] RunPod公開テンプレートを`0.4.0`へ更新
-- [ ] 配布ZIPを再作成しSHA-256・サイズを記録
+- [x] `.gitattributes`のexport-ignoreを`docs/VALIDATION-*.md`へ修正し、検証記録の配布ZIP混入を防止
+- [x] mainへfast-forward、`v0.4.0`タグ、GitHubへpush
+- [x] GHCR `0.4.0`のbuild・push（Actions run `31923061257`）
+- [x] 完成コンテナSBOMのTrivy監査（Critical 0 / High 0 / Medium 1 / Low 2）、`pip-audit --local` 0件
+- [x] RunPod RTX A4000 16GBでZ-Imageモデル取得・SHA-256一致を実測（12.2GBを34.5秒）
+- [x] RunPod上でZ-Image生成・ダウンロード・`X-AI-Generated-By`確認（1344×768を24〜28秒）
+- [x] 持ち込みLoRAのZ-Image実生成（同一Seedで出力が変わることまで確認）
+- [x] Krea2 / H3ゲートとZ-Image安全フィルターの無回帰を実機で確認
+- [x] 検証Podを削除しGPU課金0へ復帰（10.6分・約$0.06）
+- [x] RunPod公開テンプレートを`0.4.0`へ更新
+- [x] 配布ZIPを再作成しSHA-256・サイズを記録
 - [ ] Locany 0円商品とACS記事へ0.4.0を反映
 - [ ] RunPod実機でのスマホ表示確認（ローカル390px幅の横スクロールなしは確認済み）
 
@@ -55,7 +59,7 @@
 - [x] RC6完成コンテナSBOMを脆弱性スキャンし、旧基盤の重大指摘により不採用
 - [x] NVIDIA公式CUDA最小基盤のedge SBOMをスキャン（Critical 0 / High 0）
 - [x] 安定版タグの完成コンテナを同じ手順で再スキャン（Critical 0 / High 0）
-- [x] `runpod-template.json`のイメージ名を0.3.1へ更新
+- [x] `runpod-template.json`のイメージ名を0.4.0へ更新
 - [x] RunPod非公開テンプレート作成
 - [x] RunPod公開テンプレート作成（法務・H200実測後）
 - [x] 公開テンプレートURLをスターターパックへ追加
@@ -89,7 +93,7 @@
 ## 公開後の追加検証（公開阻害ではない）
 
 - [ ] Krea2 RawのGPU実生成
-- [ ] 利用者持ち込みLoRAのGPU実生成
+- [x] 利用者持ち込みLoRAのGPU実生成（0.4.0のZ-Imageで実施。Krea2側は未実施）
 - [ ] H3 I2V / FLF入力画像の実環境での処理後削除
 - [ ] H3出力3本のスマホ実機再生
 - [ ] 20分アイドル自動終了の時間経過試験

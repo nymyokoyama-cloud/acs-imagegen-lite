@@ -32,11 +32,11 @@
 
 | 用途 | VRAM目安 | 根拠 |
 |---|---|---|
-| Z-Image Turbo | 16GB以上 | 公式モデルカードの「fits comfortably within 16G VRAM consumer devices」。Lite版が取得するint8構成は重み合計約11.8GB（DiT 6.20GB＋text encoder 5.63GB）で、ComfyUIは両者を順次ロードする |
+| Z-Image Turbo | 16GB以上 | 0.4.0の実測（RTX A4000 16GB）。1344×768を約24〜28秒で生成し、GPUメモリ利用率のピークは72%（約11.5GB） |
 | Krea2 Turbo / Raw | 24GB以上 | 0.3.1の実測（L40S） |
 | MiniMax H3 | H200（日本`AP-JP-1`） | 0.3.1の実測 |
 
-Z-Image Turboの数値は公式表明と実ファイルサイズからの見積であり、Lite版でのGPU実測は公開フェーズで行います。
+Z-Image Turboは16GBのGPUで余裕をもって動きます。時間単価$0.2前後のGPUが選べるため、3エンジンの中でいちばん安く始められます。
 
 ## 保存方式
 
