@@ -8,4 +8,4 @@ docs/ACS-PAGE-DRAFT.md export-ignore
 docs/LOCANY-PRODUCT-DRAFT.md export-ignore
 docs/LICENSE-DECISION.md export-ignore
 docs/RELEASE-CHECKLIST.md export-ignore
-docs/VALIDATION-2026-08-14.md export-ignore
+docs/VALIDATION-*.md export-ignore
