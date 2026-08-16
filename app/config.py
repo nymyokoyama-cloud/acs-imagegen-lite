@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 
 APP_NAME = "ACS ImageGen Lite"
-VERSION = "0.3.1"
+VERSION = "0.4.0"
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = APP_DIR.parent
@@ -29,6 +29,7 @@ H3_SAFETY_LOG_FILE = DATA_DIR / "minimax_h3_safety_log.jsonl"
 KREA_ACCEPTANCE_FILE = DATA_DIR / "krea2_acceptance.json"
 KREA_ACCEPTANCE_LOG_FILE = DATA_DIR / "krea2_acceptance_log.jsonl"
 KREA_SAFETY_LOG_FILE = DATA_DIR / "krea2_safety_log.jsonl"
+ZIMAGE_SAFETY_LOG_FILE = DATA_DIR / "z_image_safety_log.jsonl"
 LORA_DIR = MODEL_ROOT / "loras"
 MODEL_STATE_FILE = DATA_DIR / "model_download_state.json"
 MODEL_VERIFIED_FILE = DATA_DIR / "verified_models.json"
@@ -40,6 +41,18 @@ KREA_LICENSE_URL = "https://huggingface.co/Comfy-Org/Krea-2/blob/main/LICENSE.pd
 KREA_AUP_URL = "https://www.krea.ai/krea-2-use-policy"
 KREA_TERMS_VERSION = "2026-08-14-1"
 KREA_TERMS_PATH = PROJECT_DIR / "docs" / "KREA2-TERMS.md"
+
+# Z-Image Turboの上流はApache License 2.0で、追加のAcceptable Use Policyや
+# 同意ゲートを課していない（2026-08-16にモデルカードとリポジトリのメタデータを確認）。
+# そのため同意ゲートは設けず、出典・ライセンス表示とACS側の安全検査だけを適用する。
+ZIMAGE_MODEL_NAME = "Z-Image Turbo"
+ZIMAGE_LICENSE_NAME = "Apache License 2.0"
+ZIMAGE_LICENSE_URL = "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+ZIMAGE_LICENSE_PATH = PROJECT_DIR / "APACHE-2.0-LICENSE.txt"
+ZIMAGE_TERMS_PATH = PROJECT_DIR / "docs" / "Z-IMAGE-TERMS.md"
+ZIMAGE_TERMS_VERSION = "2026-08-16-1"
+ZIMAGE_UPSTREAM_REPO = "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+ZIMAGE_REPACK_REPO = "https://huggingface.co/Comfy-Org/z_image_turbo"
 
 MODEL_REPOSITORY = "https://huggingface.co/Comfy-Org/Krea-2/resolve/main"
 MODEL_FILES = {
@@ -103,9 +116,39 @@ MODEL_FILES = {
         "size": 605_254_808,
         "sha256": "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
     },
+    # Comfy-Org公式リパックの配置は`split_files/`配下なので、取得元パスと
+    # ComfyUIの配置パスを`remote_path` / `relative_path`で分ける。
+    "zimage_diffusion": {
+        "repo_id": "Comfy-Org/z_image_turbo",
+        "revision": "d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e",
+        "repository": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e",
+        "remote_path": "split_files/diffusion_models/z_image_turbo_int8_convrot.safetensors",
+        "relative_path": "diffusion_models/z_image_turbo_int8_convrot.safetensors",
+        "size": 6_201_001_296,
+        "sha256": "be517ebd47c912a5626a588e1aeea43e6be4a43c0cdcd2b48a2a780d9f358635",
+    },
+    "zimage_text_encoder": {
+        "repo_id": "Comfy-Org/z_image_turbo",
+        "revision": "d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e",
+        "repository": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e",
+        "remote_path": "split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors",
+        "relative_path": "text_encoders/qwen_3_4b_fp8_mixed.safetensors",
+        "size": 5_631_994_051,
+        "sha256": "72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15",
+    },
+    "zimage_vae": {
+        "repo_id": "Comfy-Org/z_image_turbo",
+        "revision": "d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e",
+        "repository": "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e",
+        "remote_path": "split_files/vae/ae.safetensors",
+        "relative_path": "vae/ae.safetensors",
+        "size": 335_304_388,
+        "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38",
+    },
 }
 
 H3_FILE_KEYS = ("h3_diffusion", "h3_text_encoder", "h3_video_vae", "h3_audio_vae")
+ZIMAGE_FILE_KEYS = ("zimage_diffusion", "zimage_text_encoder", "zimage_vae")
 
 MODEL_PACKAGES = {
     "turbo": {
@@ -126,6 +169,11 @@ MODEL_PACKAGES = {
         "file_keys": ("text_encoder", "vae", "turbo", "raw"),
         "requires_krea_terms": True,
     },
+    "zimage": {
+        "label": "Z-Image Turbo",
+        "description": "いちばん軽い画像生成。16GB級GPUで動く約12.2GB",
+        "file_keys": ZIMAGE_FILE_KEYS,
+    },
     "h3": {
         "label": "MiniMax H3 動画",
         "description": "Text / Image / First-Last Frame動画。約53.9GB",
@@ -140,9 +188,9 @@ MODEL_PACKAGES = {
         "requires_h3_terms": True,
     },
     "everything": {
-        "label": "すべて：Krea2 Turbo + Raw + MiniMax H3",
-        "description": "画像2モデルと動画をすべて準備。約85.7GB",
-        "file_keys": ("text_encoder", "vae", "turbo", "raw", *H3_FILE_KEYS),
+        "label": "すべて：Krea2 Turbo + Raw + Z-Image + MiniMax H3",
+        "description": "画像3モデルと動画をすべて準備。約97.9GB",
+        "file_keys": ("text_encoder", "vae", "turbo", "raw", *ZIMAGE_FILE_KEYS, *H3_FILE_KEYS),
         "requires_krea_terms": True,
         "requires_h3_terms": True,
     },
@@ -151,6 +199,7 @@ MODEL_PACKAGES = {
 MODEL_DEFINITIONS = {
     "krea2_turbo": {
         "label": "Krea2 Turbo（高速・8 steps）",
+        "engine": "krea2",
         "unet": "krea2_turbo_fp8_scaled.safetensors",
         "steps": 8,
         "cfg": 1.0,
@@ -158,15 +207,37 @@ MODEL_DEFINITIONS = {
     },
     "krea2_raw": {
         "label": "Krea2 Raw（高品質・24 steps）",
+        "engine": "krea2",
         "unet": "krea2_raw_fp8_scaled.safetensors",
         "steps": 24,
         "cfg": 4.0,
         "negative": True,
     },
+    # Z-Image Turboの8 steps / cfg 1.0 / res_multistep / simple / shift 3.0は
+    # 公式蒸留グリッドそのものなので変更しない（ComfyUI公式int8テンプレートと同値）。
+    "zimage_turbo": {
+        "label": "Z-Image Turbo（軽量・8 steps）",
+        "engine": "zimage",
+        "unet": "z_image_turbo_int8_convrot.safetensors",
+        "steps": 8,
+        "cfg": 1.0,
+        "negative": False,
+    },
 }
 
 TEXT_ENCODER = "qwen3vl_4b_fp8_scaled.safetensors"
 VAE = "qwen_image_vae.safetensors"
+ZIMAGE_TEXT_ENCODER = "qwen_3_4b_fp8_mixed.safetensors"
+ZIMAGE_VAE = "ae.safetensors"
+ZIMAGE_SHIFT = 3.0
+ZIMAGE_SAMPLER = "res_multistep"
+ZIMAGE_SCHEDULER = "simple"
+
+# エンジンごとの共有ファイル（text encoder, VAE）
+ENGINE_ASSETS = {
+    "krea2": (TEXT_ENCODER, VAE),
+    "zimage": (ZIMAGE_TEXT_ENCODER, ZIMAGE_VAE),
+}
 
 H3_MODEL_KEY = "minimax_h3"
 H3_LICENSE_VERSION = "2026-08-02"
@@ -230,16 +301,25 @@ def model_path(model_key: str) -> Path:
     return MODEL_ROOT / "diffusion_models" / MODEL_DEFINITIONS[model_key]["unet"]
 
 
+def model_engine(model_key: str) -> str:
+    return str(MODEL_DEFINITIONS.get(model_key, {}).get("engine", "krea2"))
+
+
 def model_available(model_key: str) -> bool:
     definition = MODEL_DEFINITIONS.get(model_key)
     if not definition:
         return False
+    text_encoder, vae = ENGINE_ASSETS[model_engine(model_key)]
     required = (
         model_path(model_key),
-        MODEL_ROOT / "text_encoders" / TEXT_ENCODER,
-        MODEL_ROOT / "vae" / VAE,
+        MODEL_ROOT / "text_encoders" / text_encoder,
+        MODEL_ROOT / "vae" / vae,
     )
     return all(path.is_file() for path in required)
+
+
+def zimage_available() -> bool:
+    return model_available("zimage_turbo")
 
 
 def h3_available() -> bool:

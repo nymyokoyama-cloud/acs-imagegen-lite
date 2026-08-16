@@ -49,8 +49,8 @@ COPY --from=builder /opt/ComfyUI /opt/ComfyUI
 
 COPY app /opt/acs-imagegen-lite/app
 COPY scripts /opt/acs-imagegen-lite/scripts
-COPY KREA2_NOTICE.txt MINIMAX_H3_LICENSE.txt MINIMAX_H3_NOTICE.txt THIRD_PARTY_NOTICES.md /opt/acs-imagegen-lite/
-COPY docs/KREA2-TERMS.md docs/H3-TERMS.md docs/H3-ENFORCEMENT.md /opt/acs-imagegen-lite/docs/
+COPY KREA2_NOTICE.txt MINIMAX_H3_LICENSE.txt MINIMAX_H3_NOTICE.txt APACHE-2.0-LICENSE.txt Z_IMAGE_NOTICE.txt THIRD_PARTY_NOTICES.md /opt/acs-imagegen-lite/
+COPY docs/KREA2-TERMS.md docs/H3-TERMS.md docs/H3-ENFORCEMENT.md docs/Z-IMAGE-TERMS.md /opt/acs-imagegen-lite/docs/
 RUN chmod 0755 /opt/acs-imagegen-lite/scripts/bootstrap.sh /opt/acs-imagegen-lite/scripts/start.sh
 
 WORKDIR /opt/acs-imagegen-lite

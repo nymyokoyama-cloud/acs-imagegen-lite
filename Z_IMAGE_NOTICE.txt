@@ -1,0 +1,21 @@
+Z-Image Turbo is developed by the Tongyi-MAI team (Alibaba Group) and is
+licensed under the Apache License, Version 2.0.
+
+Official model card and license declaration:
+https://huggingface.co/Tongyi-MAI/Z-Image-Turbo
+
+The full Apache License 2.0 text is bundled as APACHE-2.0-LICENSE.txt.
+Bundled license SHA-256:
+cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
+
+The Z-Image Turbo model weights are not included in ACS ImageGen Lite. The
+application downloads the ComfyUI single-file repack published by Comfy-Org
+from Hugging Face at a pinned revision and verifies every file by SHA-256:
+https://huggingface.co/Comfy-Org/z_image_turbo
+Pinned revision: d24c4cf2a0cd98a42f23467e27e3d76ee9438b8e
+
+As of 2026-08-16 the upstream model card declares Apache-2.0 with no
+additional acceptable use policy, no gated agreement and no commercial
+restriction, so ACS ImageGen Lite does not present a consent gate for
+Z-Image Turbo. The Comfy-Org repack repository declares no license of its
+own; the licence relied upon is the upstream Apache-2.0 grant above.

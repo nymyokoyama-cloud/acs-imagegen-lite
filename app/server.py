@@ -65,15 +65,26 @@ from .config import (
     SIZES,
     STYLES,
     VERSION,
+    ZIMAGE_LICENSE_NAME,
+    ZIMAGE_LICENSE_PATH,
+    ZIMAGE_LICENSE_URL,
+    ZIMAGE_MODEL_NAME,
+    ZIMAGE_REPACK_REPO,
+    ZIMAGE_SAFETY_LOG_FILE,
+    ZIMAGE_TERMS_PATH,
+    ZIMAGE_TERMS_VERSION,
+    ZIMAGE_UPSTREAM_REPO,
     ensure_directories,
     h3_available,
     h3_region_status,
     model_available,
+    model_engine,
+    zimage_available,
 )
 from .workflow import build_h3_workflow, build_workflow
 from .model_manager import cancel_install, public_status as model_public_status, start_install
 from .config import MODEL_PACKAGES
-from .h3_safety import blocked_h3_categories, blocked_krea_categories
+from .h3_safety import blocked_h3_categories, blocked_krea_categories, blocked_zimage_categories
 
 
 HTML_PATH = APP_DIR / "templates" / "index.html"
@@ -106,6 +117,7 @@ H3_ACCEPTANCE_LOCK = threading.Lock()
 H3_SAFETY_LOG_LOCK = threading.Lock()
 KREA_ACCEPTANCE_LOCK = threading.Lock()
 KREA_SAFETY_LOG_LOCK = threading.Lock()
+ZIMAGE_SAFETY_LOG_LOCK = threading.Lock()
 POD_ACTION_LOCK = threading.Lock()
 
 
@@ -365,6 +377,54 @@ def krea_ready_for_access() -> tuple[bool, str]:
     return True, "利用できます"
 
 
+def log_zimage_safety_block(categories: list[str], stage: str) -> None:
+    record = {
+        "blocked_at": datetime.now(timezone.utc).isoformat(),
+        "app_version": VERSION,
+        "stage": stage,
+        "categories": sorted(set(categories)),
+    }
+    try:
+        with ZIMAGE_SAFETY_LOG_LOCK:
+            with ZIMAGE_SAFETY_LOG_FILE.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            ZIMAGE_SAFETY_LOG_FILE.chmod(0o600)
+    except OSError:
+        pass
+
+
+def zimage_ready_for_access() -> tuple[bool, str]:
+    """Z-Image TurboはApache-2.0で追加の同意条件がないため、同意ゲートを設けない。"""
+    return True, "利用できます"
+
+
+def image_engine_ready(model_key: str) -> tuple[bool, str]:
+    if model_engine(model_key) == "zimage":
+        return zimage_ready_for_access()
+    return krea_ready_for_access()
+
+
+def blocked_image_categories(model_key: str, prompt: str) -> list[str]:
+    if model_engine(model_key) == "zimage":
+        return blocked_zimage_categories(prompt)
+    return blocked_krea_categories(prompt)
+
+
+def log_image_safety_block(model_key: str, categories: list[str], stage: str) -> None:
+    if model_engine(model_key) == "zimage":
+        log_zimage_safety_block(categories, stage)
+    else:
+        log_krea_safety_block(categories, stage)
+
+
+def image_safety_report_url(model_key: str) -> str:
+    if model_engine(model_key) == "zimage":
+        return ZIMAGE_UPSTREAM_REPO
+    return KREA_AUP_URL
+
+
 def h3_acceptance() -> dict[str, Any] | None:
     if not h3_license_integrity_ok():
         return None
@@ -509,6 +569,7 @@ def _copy_comfy_output(
     *,
     h3_output: bool = False,
     krea_output: bool = False,
+    zimage_output: bool = False,
 ) -> str:
     outputs = history.get(prompt_id, {}).get("outputs", {})
     for node in outputs.values():
@@ -524,7 +585,15 @@ def _copy_comfy_output(
                 source = source_root / subfolder / filename
                 if not source.is_file() or source.suffix.lower() not in MEDIA_SUFFIXES:
                     continue
-                marker = "-minimax-h3-ai" if h3_output else "-krea2-ai" if krea_output else ""
+                marker = (
+                    "-minimax-h3-ai"
+                    if h3_output
+                    else "-krea2-ai"
+                    if krea_output
+                    else "-zimage-ai"
+                    if zimage_output
+                    else ""
+                )
                 destination = OUTPUT_DIR / f"job-{job_id}{marker}{source.suffix.lower()}"
                 shutil.copy2(source, destination)
                 return destination.name
@@ -561,13 +630,18 @@ def run_job(row: sqlite3.Row) -> str:
         return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]), h3_output=True)
 
     model_key = row["model_key"]
-    allowed, reason = krea_ready_for_access()
+    engine = model_engine(model_key)
+    allowed, reason = image_engine_ready(model_key)
     if not allowed:
         raise RuntimeError(reason)
-    blocked = blocked_krea_categories(str(row["prompt"]))
+    blocked = blocked_image_categories(model_key, str(row["prompt"]))
     if blocked:
-        log_krea_safety_block(blocked, "worker")
-        raise RuntimeError("Krea 2安全フィルターにより生成を拒否しました")
+        log_image_safety_block(model_key, blocked, "worker")
+        raise RuntimeError(
+            "Z-Image安全フィルターにより生成を拒否しました"
+            if engine == "zimage"
+            else "Krea 2安全フィルターにより生成を拒否しました"
+        )
     if not model_available(model_key):
         raise RuntimeError(f"model is not installed: {model_key}")
     ratio = row["ratio"]
@@ -589,11 +663,21 @@ def run_job(row: sqlite3.Row) -> str:
         trigger_word=row["trigger_word"],
         style_key=row["style_key"],
     )
-    return _wait_for_comfy(_submit_to_comfy(graph), int(row["id"]), krea_output=True)
+    return _wait_for_comfy(
+        _submit_to_comfy(graph),
+        int(row["id"]),
+        krea_output=engine == "krea2",
+        zimage_output=engine == "zimage",
+    )
 
 
 def _wait_for_comfy(
-    prompt_id: str, job_id: int, *, h3_output: bool = False, krea_output: bool = False
+    prompt_id: str,
+    job_id: int,
+    *,
+    h3_output: bool = False,
+    krea_output: bool = False,
+    zimage_output: bool = False,
 ) -> str:
     deadline = time.time() + JOB_TIMEOUT_SEC
     while time.time() < deadline:
@@ -618,6 +702,7 @@ def _wait_for_comfy(
                     job_id,
                     h3_output=h3_output,
                     krea_output=krea_output,
+                    zimage_output=zimage_output,
                 )
         except urllib.error.URLError:
             pass
@@ -711,6 +796,8 @@ async def authentication(request: Request, call_next):
         "/legal/krea2-terms",
         "/legal/h3-terms",
         "/legal/h3-enforcement",
+        "/legal/z-image-license",
+        "/legal/z-image-terms",
     }
     if request.method not in {"GET", "HEAD", "OPTIONS"} and not same_origin(request):
         return JSONResponse({"error": "origin check failed"}, status_code=403)
@@ -750,6 +837,16 @@ def h3_terms():
 @app.get("/legal/h3-enforcement", response_class=PlainTextResponse)
 def h3_enforcement():
     return PlainTextResponse(H3_ENFORCEMENT_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/legal/z-image-license", response_class=PlainTextResponse)
+def z_image_license():
+    return PlainTextResponse(ZIMAGE_LICENSE_PATH.read_text(encoding="utf-8"))
+
+
+@app.get("/legal/z-image-terms", response_class=PlainTextResponse)
+def z_image_terms():
+    return PlainTextResponse(ZIMAGE_TERMS_PATH.read_text(encoding="utf-8"))
 
 
 @app.get("/setup", response_class=HTMLResponse)
@@ -813,12 +910,20 @@ def api_config():
         "app": APP_NAME,
         "version": VERSION,
         "models": [
-            {"key": key, "label": value["label"], "available": model_available(key), "negative": value["negative"]}
+            {
+                "key": key,
+                "label": value["label"],
+                "engine": model_engine(key),
+                "unet": value["unet"],
+                "available": model_available(key),
+                "negative": value["negative"],
+            }
             for key, value in MODEL_DEFINITIONS.items()
         ],
         "ratios": list(SIZES.keys()),
         "h3_ratios": list(H3_SIZES.keys()),
         "h3_available": h3_available(),
+        "zimage_available": zimage_available(),
         "styles": [{"key": key, "label": value[0]} for key, value in STYLES.items()],
         "loras": list_loras(),
         "pod_default_action": "terminate",
@@ -832,7 +937,27 @@ def api_models():
     result = model_public_status()
     result["krea"] = api_krea_status()
     result["h3"] = api_h3_status()
+    result["zimage"] = api_zimage_status()
     return result
+
+
+@app.get("/api/zimage/status")
+def api_zimage_status():
+    # Apache-2.0のため同意ゲートは存在しない。表示・出典・安全検査だけを提供する。
+    return {
+        "model_name": ZIMAGE_MODEL_NAME,
+        "available": zimage_available(),
+        "license_name": ZIMAGE_LICENSE_NAME,
+        "license_url": ZIMAGE_LICENSE_URL,
+        "license_local_url": "/legal/z-image-license",
+        "terms_url": "/legal/z-image-terms",
+        "terms_version": ZIMAGE_TERMS_VERSION,
+        "upstream_repo": ZIMAGE_UPSTREAM_REPO,
+        "repack_repo": ZIMAGE_REPACK_REPO,
+        "acceptance_required": False,
+        "safety_filter": True,
+        "human_output_review_required": True,
+    }
 
 
 @app.get("/api/krea/status")
@@ -1031,22 +1156,28 @@ def api_generate(
     lora_strength: float = Form(1.0),
     trigger_word: str = Form(""),
 ):
-    allowed, reason = krea_ready_for_access()
+    if model_key not in MODEL_DEFINITIONS:
+        return JSONResponse({"error": "選択したモデルは利用できません"}, status_code=400)
+    allowed, reason = image_engine_ready(model_key)
     if not allowed:
         return JSONResponse({"error": reason}, status_code=451)
     prompt = prompt.strip()
     if not prompt or len(prompt) > MAX_PROMPT_LENGTH:
         return JSONResponse({"error": "プロンプトが空か、長すぎます"}, status_code=400)
-    if model_key not in MODEL_DEFINITIONS or not model_available(model_key):
+    if not model_available(model_key):
         return JSONResponse({"error": "選択したモデルは利用できません"}, status_code=400)
-    blocked = blocked_krea_categories(prompt)
+    blocked = blocked_image_categories(model_key, prompt)
     if blocked:
-        log_krea_safety_block(blocked, "request")
+        log_image_safety_block(model_key, blocked, "request")
         return JSONResponse(
             {
-                "error": "Krea 2安全フィルターにより生成を拒否しました。利用条件を確認してください。",
+                "error": (
+                    "Z-Image安全フィルターにより生成を拒否しました。利用条件を確認してください。"
+                    if model_engine(model_key) == "zimage"
+                    else "Krea 2安全フィルターにより生成を拒否しました。利用条件を確認してください。"
+                ),
                 "categories": blocked,
-                "report_url": KREA_AUP_URL,
+                "report_url": image_safety_report_url(model_key),
             },
             status_code=422,
         )
@@ -1183,7 +1314,11 @@ def api_image(name: str):
     if not path.is_file() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
         return JSONResponse({"error": "画像が見つかりません"}, status_code=404)
     touch_activity()
-    headers = {"X-AI-Generated-By": "Krea 2"} if "-krea2-ai" in clean else {}
+    headers = {}
+    if "-krea2-ai" in clean:
+        headers["X-AI-Generated-By"] = "Krea 2"
+    elif "-zimage-ai" in clean:
+        headers["X-AI-Generated-By"] = ZIMAGE_MODEL_NAME
     return FileResponse(path, filename=clean, headers=headers)
 
 
@@ -1199,6 +1334,8 @@ def api_output(name: str):
         headers["X-AI-Generated-By"] = "MiniMax H3"
     elif "-krea2-ai" in clean:
         headers["X-AI-Generated-By"] = "Krea 2"
+    elif "-zimage-ai" in clean:
+        headers["X-AI-Generated-By"] = ZIMAGE_MODEL_NAME
     return FileResponse(path, filename=clean, headers=headers)
 
 

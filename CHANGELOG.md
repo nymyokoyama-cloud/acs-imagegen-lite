@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 - 2026-08-16
+
+- 第3の画像エンジンとしてZ-Image Turbo Text to Imageを追加（Krea2と同じ5比率・スタイル・Seed・持ち込みLoRA）
+- Z-Imageグラフを公式蒸留設定で固定（8 steps / cfg 1.0 / `res_multistep` / `simple` / `ModelSamplingAuraFlow` shift 3.0）
+- モデル管理へ「Z-Image Turbo」構成（約12.2GB）を追加。ComfyUI公式int8テンプレートと同じ3ファイルを固定revisionとSHA-256で取得
+- 取得元パスと配置パスが異なるリポジトリ（Comfy-Orgの`split_files/`）に対応
+- Z-ImageはApache-2.0で追加条件がないため同意ゲートを設けず、ライセンス表示・出典・日本語利用条件・Apache-2.0原文同梱で対応
+- Z-Image生成にもACS独自のプロンプト安全検査、AI生成ファイル名`zimage-ai`、`X-AI-Generated-By`ヘッダーを適用
+- 「すべて」構成にZ-Imageを追加（約97.9GB）。Krea2 / H3の同意ゲートとfail closed機構は変更なし
+- LoRAはエンジン一致が必要である旨をUIと利用ガイドへ明記
+
 ## 0.3.1 - 2026-08-14
 
 - Ubuntu実行イメージへ完全なPython 3標準ライブラリを同梱し、RunPodでの初回起動を修正

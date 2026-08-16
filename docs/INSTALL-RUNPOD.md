@@ -4,27 +4,39 @@
 
 1. ACS Developerの配布ページから0円スターターパックを入手します。
 2. パック内の「RunPodで起動」を開きます。
-3. H3を使う場合は日本リージョン`AP-JP-1`のH200を選びます。Krea2だけなら24GB以上のGPUが目安です。
-4. 一時ディスクは150GBにします。継続保存したい人だけ150GB以上のNetwork Volumeを`/workspace`へ接続します。
+3. H3を使う場合は日本リージョン`AP-JP-1`のH200を選びます。Krea2だけなら24GB以上、Z-Image Turboだけなら16GB以上のGPUが目安です。
+4. 一時ディスクは150GBにします。継続保存したい人だけ150GB以上のNetwork Volumeを`/workspace`へ接続します。Z-Image Turboだけで使う場合は40GBでも足ります。
 5. Deploy後、Connect画面からHTTP Port 8080を開きます。
 6. 10文字以上のパスワードを設定してログインします。
 7. Krea2を使う場合は公式ライセンスPDFとAUPを読み、年商条件を含む画面の5項目へ同意します。
 8. H3を使う場合は同梱ライセンス全文と日本語条件を読み、画面の7項目へ同意します。
-9. 「おすすめ：Krea2 Turbo + MiniMax H3」または必要なモデルだけを選び、100%まで待ちます。Xet高速転送中は大きい1ファイルの進捗が完了時にまとまって動く場合があります。中断後は同じボタンで再開できます。
-10. 生成物を人が確認してスマホへ保存し、Network Volumeを使わない場合は「Podを完全削除」を押します。
-11. 最後にRunPodコンソールで対象Podが消えたことを確認します。これが課金停止の確定です。
+9. Z-Image TurboはApache-2.0のため同意ゲートがありません。そのまま取得できます。
+10. 「Z-Image Turbo」「おすすめ：Krea2 Turbo + MiniMax H3」など必要なモデルだけを選び、100%まで待ちます。Xet高速転送中は大きい1ファイルの進捗が完了時にまとまって動く場合があります。中断後は同じボタンで再開できます。
+11. 生成物を人が確認してスマホへ保存し、Network Volumeを使わない場合は「Podを完全削除」を押します。
+12. 最後にRunPodコンソールで対象Podが消えたことを確認します。これが課金停止の確定です。
 
 モデル取得や生成のためにRunPod APIキーをUIへ入力する必要はありません。終了ボタンはPod環境のAPI資格情報で自動終了を試しますが、権限不足時はエラーとコンソール導線を表示します。モデルはスマホではなくRunPodへ保存されます。
 
 ## 容量の目安
 
+- Z-Image Turbo: 約12.2GB
 - Krea2 Turbo: 約18.6GB
 - Krea2 Turbo + Raw: 約31.8GB
 - MiniMax H3: 約53.9GB
 - おすすめ（Turbo + H3）: 約72.6GB
-- すべて（Turbo + Raw + H3）: 約85.7GB
+- すべて（Turbo + Raw + Z-Image + H3）: 約97.9GB
 
 環境、ComfyUI、作業領域、生成物の余裕を含め、一時ディスク150GBを既定にしています。
+
+## GPUの目安
+
+| 用途 | VRAM目安 | 根拠 |
+|---|---|---|
+| Z-Image Turbo | 16GB以上 | 公式モデルカードの「fits comfortably within 16G VRAM consumer devices」。Lite版が取得するint8構成は重み合計約11.8GB（DiT 6.20GB＋text encoder 5.63GB）で、ComfyUIは両者を順次ロードする |
+| Krea2 Turbo / Raw | 24GB以上 | 0.3.1の実測（L40S） |
+| MiniMax H3 | H200（日本`AP-JP-1`） | 0.3.1の実測 |
+
+Z-Image Turboの数値は公式表明と実ファイルサイズからの見積であり、Lite版でのGPU実測は公開フェーズで行います。
 
 ## 保存方式
 
@@ -37,7 +49,7 @@
 
 `runpod-template.json`は設定値の正本です。RunPodのCustom Templatesへ次を反映します。
 
-- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.3.1`
+- Container image: `ghcr.io/nymyokoyama-cloud/acs-imagegen-lite:0.4.0`
 - Container start command: `/opt/acs-imagegen-lite/scripts/start.sh`
 - Container disk: 150GB
 - Volume disk: 0GB（利用者の任意）
@@ -64,10 +76,14 @@ H3の許可リージョンはアプリ内で日本`AP-JP-1`へ固定していま
 
 Krea 2は公式ライセンスとAUPへの同意前にモデル取得と画像生成を拒否します。受付時と実行直前のプロンプト検査を無効化する環境変数はありません。商用利用の年商条件と完成画像の人による確認も必要です。
 
+Z-Image TurboはApache-2.0で追加条件がないため同意ゲートを設けていません。ただしACS独自方針として、プロンプト安全検査とAI生成識別は同様に適用し、これを無効化する環境変数もありません。
+
 ## トラブル時
 
 - H3を有効にできない: RunPodのデータセンターが日本`AP-JP-1`か確認します。
 - 容量不足: 一時ディスクまたはNetwork Volumeを150GB以上にします。
 - ComfyUI準備中: 数分待ってから再読込します。
 - H3メモリ不足: H200を選び、他ジョブがない状態で5秒動画から試します。
+- Z-Imageメモリ不足: 16GB以上のGPUを選び、他ジョブがない状態で1024×1024から試します。
+- Z-ImageでLoRAが効かない: Krea2用など別エンジンのLoRAを選んでいないか確認します。合わないLoRAはエラーにならず効果が出ないことがあります。
 - 停止に失敗: 画面に成功を装わずエラーを表示します。RunPodコンソールから手動でPodを停止・削除します。

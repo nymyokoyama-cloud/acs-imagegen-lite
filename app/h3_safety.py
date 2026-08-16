@@ -149,3 +149,8 @@ def blocked_h3_categories(prompt: str) -> list[str]:
 
 def blocked_krea_categories(prompt: str) -> list[str]:
     return blocked_h3_categories(prompt)
+
+
+def blocked_zimage_categories(prompt: str) -> list[str]:
+    """Z-Image TurboはApache-2.0で追加のAUPを課さないが、ACS独自方針として同じ検査を適用する。"""
+    return blocked_h3_categories(prompt)

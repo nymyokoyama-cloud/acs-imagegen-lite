@@ -238,6 +238,7 @@ def _download_stream(url: str, partial: Path, expected_size: int, progress) -> N
 def _download_huggingface(
     repo_id: str,
     revision: str,
+    remote_path: str,
     relative_path: str,
     target: Path,
     expected_size: int,
@@ -252,8 +253,9 @@ def _download_huggingface(
             str(HF_DOWNLOAD_SCRIPT),
             repo_id,
             revision,
-            relative_path,
+            remote_path,
             str(MODEL_ROOT),
+            relative_path,
         ],  # nosec B603
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -313,7 +315,9 @@ def _prepare_file(file_key: str, completed_before: int, total_size: int, index: 
         target.rename(target.with_suffix(target.suffix + f".invalid.{int(time.time())}"))
 
     repository = str(definition.get("repository", MODEL_REPOSITORY)).rstrip("/")
-    url = f"{repository}/{definition['relative_path']}"
+    # 取得元パスは配置パスと異なる場合がある（Comfy-Orgリパックの`split_files/`）。
+    remote_path = str(definition.get("remote_path", definition["relative_path"]))
+    url = f"{repository}/{remote_path}"
     accelerated = bool(definition.get("repo_id"))
 
     def progress(downloaded: int) -> None:
@@ -339,6 +343,7 @@ def _prepare_file(file_key: str, completed_before: int, total_size: int, index: 
         _download_huggingface(
             str(definition["repo_id"]),
             str(definition["revision"]),
+            remote_path,
             str(definition["relative_path"]),
             target,
             expected_size,

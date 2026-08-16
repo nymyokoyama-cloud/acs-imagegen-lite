@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from .config import MODEL_DEFINITIONS, STYLES, TEXT_ENCODER, VAE
+from .config import (
+    MODEL_DEFINITIONS,
+    STYLES,
+    TEXT_ENCODER,
+    VAE,
+    ZIMAGE_SAMPLER,
+    ZIMAGE_SCHEDULER,
+    ZIMAGE_SHIFT,
+    ZIMAGE_TEXT_ENCODER,
+    ZIMAGE_VAE,
+)
 
 
 def compose_prompt(prompt: str, trigger_word: str = "", style_key: str = "none") -> str:
@@ -34,6 +44,18 @@ def build_workflow(
     if model_key not in MODEL_DEFINITIONS:
         raise ValueError(f"unknown model: {model_key}")
     definition = MODEL_DEFINITIONS[model_key]
+    if definition.get("engine") == "zimage":
+        return build_zimage_workflow(
+            model_key=model_key,
+            prompt=prompt,
+            width=width,
+            height=height,
+            seed=seed,
+            lora_name=lora_name,
+            lora_strength=lora_strength,
+            trigger_word=trigger_word,
+            style_key=style_key,
+        )
     positive_text = compose_prompt(prompt, trigger_word, style_key)
     if not positive_text:
         raise ValueError("prompt is empty")
@@ -96,6 +118,88 @@ def build_workflow(
             },
         }
         graph["7"]["inputs"]["model"] = ["10", 0]
+
+    return graph
+
+
+def build_zimage_workflow(
+    model_key: str,
+    prompt: str,
+    width: int,
+    height: int,
+    seed: int,
+    lora_name: str | None = None,
+    lora_strength: float = 1.0,
+    trigger_word: str = "",
+    style_key: str = "none",
+) -> dict[str, dict[str, Any]]:
+    """Z-Image Turboの公式8ステップグラフ。
+
+    steps 8 / cfg 1.0 / res_multistep / simple / ModelSamplingAuraFlow shift 3.0は
+    Turbo蒸留の学習グリッドと一致する公式設定であり、変更すると品質が崩れる。
+    ModelSamplingAuraFlowの既定shiftは3.0ではないため、必ず明示する。
+    """
+    definition = MODEL_DEFINITIONS[model_key]
+    positive_text = compose_prompt(prompt, trigger_word, style_key)
+    if not positive_text:
+        raise ValueError("prompt is empty")
+    # Z-Imageは辺が16の倍数である必要がある。
+    width = max(16, (int(width) // 16) * 16)
+    height = max(16, (int(height) // 16) * 16)
+
+    graph: dict[str, dict[str, Any]] = {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {"unet_name": definition["unet"], "weight_dtype": "default"},
+        },
+        "2": {
+            "class_type": "CLIPLoader",
+            "inputs": {"clip_name": ZIMAGE_TEXT_ENCODER, "type": "lumina2", "device": "default"},
+        },
+        "3": {"class_type": "VAELoader", "inputs": {"vae_name": ZIMAGE_VAE}},
+        "4": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["2", 0], "text": positive_text}},
+        # Turboはcfg 1.0の蒸留モデルなのでネガティブは常にゼロ化する。
+        "5": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["4", 0]}},
+        "6": {
+            "class_type": "EmptySD3LatentImage",
+            "inputs": {"width": width, "height": height, "batch_size": 1},
+        },
+        "7": {
+            "class_type": "ModelSamplingAuraFlow",
+            "inputs": {"model": ["1", 0], "shift": ZIMAGE_SHIFT},
+        },
+        "8": {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": ["7", 0],
+                "positive": ["4", 0],
+                "negative": ["5", 0],
+                "latent_image": ["6", 0],
+                "seed": seed,
+                "steps": definition["steps"],
+                "cfg": definition["cfg"],
+                "sampler_name": ZIMAGE_SAMPLER,
+                "scheduler": ZIMAGE_SCHEDULER,
+                "denoise": 1.0,
+            },
+        },
+        "9": {"class_type": "VAEDecode", "inputs": {"samples": ["8", 0], "vae": ["3", 0]}},
+        "10": {
+            "class_type": "SaveImage",
+            "inputs": {"images": ["9", 0], "filename_prefix": "ACS_ImageGen_Lite_ZImage"},
+        },
+    }
+
+    if lora_name:
+        graph["11"] = {
+            "class_type": "LoraLoaderModelOnly",
+            "inputs": {
+                "model": ["1", 0],
+                "lora_name": lora_name,
+                "strength_model": lora_strength,
+            },
+        }
+        graph["7"]["inputs"]["model"] = ["11", 0]
 
     return graph
 

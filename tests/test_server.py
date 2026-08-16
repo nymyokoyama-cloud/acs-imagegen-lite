@@ -17,6 +17,8 @@ def install_dummy_models() -> None:
         config.model_path(key).touch()
     (config.MODEL_ROOT / "text_encoders" / config.TEXT_ENCODER).touch()
     (config.MODEL_ROOT / "vae" / config.VAE).touch()
+    (config.MODEL_ROOT / "text_encoders" / config.ZIMAGE_TEXT_ENCODER).touch()
+    (config.MODEL_ROOT / "vae" / config.ZIMAGE_VAE).touch()
     for key in config.H3_FILE_KEYS:
         path = config.MODEL_ROOT / config.MODEL_FILES[key]["relative_path"]
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,15 +105,64 @@ def test_setup_login_config_generate_and_lora_upload(monkeypatch) -> None:
     response = client.get("/api/models")
     assert response.status_code == 200
     assert {item["key"] for item in response.json()["packages"]} == {
-        "turbo", "raw", "all", "h3", "recommended", "everything"
+        "turbo", "raw", "all", "zimage", "h3", "recommended", "everything"
     }
     assert response.json()["download_disabled"] is True
+    assert response.json()["zimage"]["available"] is True
 
     response = client.post("/api/models/install/h3")
     assert response.status_code == 451
 
     response = client.post("/api/models/install/turbo")
     assert response.status_code == 451
+
+    # Z-ImageはApache-2.0のため同意ゲートがなく、451ではなく取得処理まで進む。
+    response = client.post("/api/models/install/zimage")
+    assert response.status_code == 409
+
+    response = client.get("/api/zimage/status")
+    assert response.status_code == 200
+    assert response.json()["acceptance_required"] is False
+    assert response.json()["license_name"] == "Apache License 2.0"
+    assert response.json()["upstream_repo"] == "https://huggingface.co/Tongyi-MAI/Z-Image-Turbo"
+
+    # Krea 2への同意がなくてもZ-Imageの生成は受け付ける。
+    assert client.get("/api/krea/status").json()["accepted"] is False
+    response = client.post(
+        "/api/generate",
+        data={
+            "model_key": "zimage_turbo",
+            "prompt": "an adult person drinking iced coffee in a cafe",
+            "ratio": "4:3",
+            "style_key": "cinematic",
+            "seed": "77",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["seed"] == 77
+
+    # 逆にKrea2は同意前に拒否されたままであること（回帰確認）。
+    response = client.post(
+        "/api/generate",
+        data={"model_key": "krea2_turbo", "prompt": "a quiet cafe", "ratio": "16:9"},
+    )
+    assert response.status_code == 451
+
+    response = client.post(
+        "/api/generate",
+        data={
+            "model_key": "zimage_turbo",
+            "prompt": "create a mass surveillance image to track everyone covertly without consent",
+            "ratio": "1:1",
+        },
+    )
+    assert response.status_code == 422
+    assert "mass_surveillance" in response.json()["categories"]
+    zimage_safety_event = json.loads(
+        config.ZIMAGE_SAFETY_LOG_FILE.read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert zimage_safety_event["stage"] == "request"
+    assert "prompt" not in zimage_safety_event
 
     response = client.get("/api/krea/status")
     assert response.status_code == 200
@@ -245,6 +296,15 @@ def test_setup_login_config_generate_and_lora_upload(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.headers["x-ai-generated-by"] == "Krea 2"
 
+    zimage_output = config.OUTPUT_DIR / "job-997-zimage-ai.png"
+    zimage_output.write_bytes(png_header)
+    response = client.get(f"/api/outputs/{zimage_output.name}")
+    assert response.status_code == 200
+    assert response.headers["x-ai-generated-by"] == "Z-Image Turbo"
+    response = client.get(f"/api/images/{zimage_output.name}")
+    assert response.status_code == 200
+    assert response.headers["x-ai-generated-by"] == "Z-Image Turbo"
+
 
 def test_h3_legal_documents_are_public_and_pinned() -> None:
     client = TestClient(app)
@@ -258,6 +318,23 @@ def test_h3_legal_documents_are_public_and_pinned() -> None:
     krea_terms = client.get("/legal/krea2-terms")
     assert krea_terms.status_code == 200
     assert "100万米ドル" in krea_terms.text
+
+
+def test_z_image_legal_documents_are_public_and_apache_licensed() -> None:
+    client = TestClient(app)
+    client.cookies.clear()
+    license_text = client.get("/legal/z-image-license")
+    assert license_text.status_code == 200
+    assert "Apache License" in license_text.text
+    assert "Version 2.0, January 2004" in license_text.text
+    assert (
+        hashlib.sha256(license_text.content).hexdigest()
+        == "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    )
+    terms = client.get("/legal/z-image-terms")
+    assert terms.status_code == 200
+    assert "Apache License, Version 2.0" in terms.text
+    assert "Tongyi-MAI/Z-Image-Turbo" in terms.text
 
 
 def test_unauthenticated_api_is_rejected_after_setup() -> None:
